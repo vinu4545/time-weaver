@@ -1,0 +1,179 @@
+import { useState } from "react";
+import { DashboardLayout } from "@/components/DashboardLayout";
+import { useTimetableStore } from "@/stores/timetableStore";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Plus, Trash2 } from "lucide-react";
+import type { Faculty, FacultyType, Day, SlotId } from "@/types/timetable";
+import { ALL_DAYS, ALL_SLOTS } from "@/types/timetable";
+
+function FacultyForm({ onSubmit, subjects }: { onSubmit: (f: Faculty) => void; subjects: { id: string; name: string }[] }) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<FacultyType>("assistant");
+  const [maxLoad, setMaxLoad] = useState(18);
+  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [availability, setAvailability] = useState<Record<Day, SlotId[]>>({
+    Monday: [...ALL_SLOTS],
+    Tuesday: [...ALL_SLOTS],
+    Wednesday: [...ALL_SLOTS],
+    Thursday: [...ALL_SLOTS],
+    Friday: [...ALL_SLOTS],
+  });
+
+  const toggleSlot = (day: Day, slot: SlotId) => {
+    setAvailability((prev) => ({
+      ...prev,
+      [day]: prev[day].includes(slot)
+        ? prev[day].filter((s) => s !== slot)
+        : [...prev[day], slot],
+    }));
+  };
+
+  const handleSubmit = () => {
+    if (!name.trim()) return;
+    onSubmit({
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      type,
+      subjectIds: selectedSubjects,
+      maxWeeklyLoad: maxLoad,
+      availability: ALL_DAYS.map((d) => ({ day: d, slots: availability[d] })),
+    });
+  };
+
+  return (
+    <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+      <div>
+        <Label>Name</Label>
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Dr. Smith" />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label>Type</Label>
+          <Select value={type} onValueChange={(v) => setType(v as FacultyType)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="assistant">Assistant</SelectItem>
+              <SelectItem value="associate">Associate</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Max Weekly Load</Label>
+          <Input type="number" min={1} max={30} value={maxLoad} onChange={(e) => setMaxLoad(+e.target.value)} />
+        </div>
+      </div>
+
+      <div>
+        <Label className="mb-2 block">Can Teach</Label>
+        <div className="flex flex-wrap gap-2">
+          {subjects.map((s) => (
+            <label key={s.id} className="flex items-center gap-1.5 text-sm border border-border rounded-md px-2 py-1 cursor-pointer hover:bg-muted/50">
+              <Checkbox
+                checked={selectedSubjects.includes(s.id)}
+                onCheckedChange={(c) =>
+                  setSelectedSubjects(c ? [...selectedSubjects, s.id] : selectedSubjects.filter((x) => x !== s.id))
+                }
+              />
+              {s.name}
+            </label>
+          ))}
+          {subjects.length === 0 && <span className="text-xs text-muted-foreground">Add subjects first</span>}
+        </div>
+      </div>
+
+      <div>
+        <Label className="mb-2 block">Availability Matrix</Label>
+        <div className="overflow-x-auto">
+          <table className="text-xs w-full">
+            <thead>
+              <tr>
+                <th className="text-left py-1 pr-2">Day</th>
+                {ALL_SLOTS.map((s) => <th key={s} className="px-1 py-1 text-center">{s}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {ALL_DAYS.map((day) => (
+                <tr key={day}>
+                  <td className="py-1 pr-2 font-medium">{day.slice(0, 3)}</td>
+                  {ALL_SLOTS.map((slot) => (
+                    <td key={slot} className="text-center px-1 py-1">
+                      <button
+                        type="button"
+                        onClick={() => toggleSlot(day, slot)}
+                        className={`w-6 h-6 rounded text-xs transition ${
+                          availability[day].includes(slot) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {availability[day].includes(slot) ? '✓' : '×'}
+                      </button>
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <Button onClick={handleSubmit} className="w-full bg-gradient-primary text-primary-foreground">Add Faculty</Button>
+    </div>
+  );
+}
+
+export default function FacultyPage() {
+  const { faculty, subjects, addFaculty, removeFaculty } = useTimetableStore();
+  const [open, setOpen] = useState(false);
+
+  return (
+    <DashboardLayout>
+      <div className="animate-fade-in">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Faculty</h1>
+            <p className="text-muted-foreground text-sm">Manage faculty members and availability</p>
+          </div>
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-gradient-primary text-primary-foreground"><Plus className="h-4 w-4 mr-2" />Add Faculty</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader><DialogTitle>Add Faculty</DialogTitle></DialogHeader>
+              <FacultyForm
+                subjects={subjects.map((s) => ({ id: s.id, name: s.name }))}
+                onSubmit={(f) => { addFaculty(f); setOpen(false); }}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {faculty.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-border p-12 text-center text-muted-foreground">
+            No faculty members yet.
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {faculty.map((f) => (
+              <div key={f.id} className="rounded-xl border border-border bg-card p-4 flex items-start justify-between">
+                <div>
+                  <p className="font-semibold">{f.name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{f.type} • Max {f.maxWeeklyLoad} hrs/wk</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Teaches: {f.subjectIds.map((id) => subjects.find((s) => s.id === id)?.name || id).join(", ") || "None assigned"}
+                  </p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => removeFaculty(f.id)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </DashboardLayout>
+  );
+}
