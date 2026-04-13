@@ -2,14 +2,16 @@ import { useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard, BookOpen, Users, DoorOpen, FlaskConical,
   UsersRound, Building, Settings, Zap, BarChart3, Download,
-  ChevronLeft,
+  LogOut,
 } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
-  useSidebar,
+  SidebarFooter, useSidebar,
 } from "@/components/ui/sidebar";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 
 const mainItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -29,9 +31,9 @@ const toolItems = [
 ];
 
 export function AppSidebar() {
-  const { state, toggleSidebar } = useSidebar();
+  const { state } = useSidebar();
   const collapsed = state === "collapsed";
-  const location = useLocation();
+  const { user, signOut } = useAuth();
 
   return (
     <Sidebar collapsible="icon">
@@ -83,6 +85,23 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+
+      <SidebarFooter className="p-3">
+        {user && !collapsed && (
+          <div className="text-xs text-sidebar-foreground/70 truncate mb-2 px-1">
+            {user.email}
+          </div>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground"
+          onClick={signOut}
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          {!collapsed && "Sign Out"}
+        </Button>
+      </SidebarFooter>
     </Sidebar>
   );
 }
