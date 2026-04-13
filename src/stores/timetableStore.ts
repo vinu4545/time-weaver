@@ -3,11 +3,10 @@ import { persist } from 'zustand/middleware';
 import type {
   Subject, Faculty, Room, Lab, Batch, Division,
   InstitutionalRules, SubjectFacultyMapping, GeneratedTimetable,
-  SoftConstraintConfig, DEFAULT_SOFT_CONSTRAINTS, ALL_DAYS
+  SoftConstraintConfig,
 } from '@/types/timetable';
 
 interface TimetableStore {
-  // Data
   subjects: Subject[];
   faculty: Faculty[];
   rooms: Room[];
@@ -20,7 +19,6 @@ interface TimetableStore {
   generatedTimetables: GeneratedTimetable[];
   isGenerating: boolean;
 
-  // Actions
   addSubject: (s: Subject) => void;
   updateSubject: (id: string, s: Partial<Subject>) => void;
   removeSubject: (id: string) => void;
@@ -68,10 +66,11 @@ export const useTimetableStore = create<TimetableStore>()(
       mappings: [],
       rules: {
         startTime: '09:00',
-        endTime: '16:00',
-        breakSlots: [],
+        endTime: '18:15',
+        breakSlots: ['BREAK1'],
         lunchSlot: 'LUNCH',
         workingDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
+        oneLecturePerSubjectPerDay: true,
       },
       softConstraints: {
         avoidBackToBack: { enabled: true, weight: 3 },
@@ -81,6 +80,7 @@ export const useTimetableStore = create<TimetableStore>()(
         facultyPreference: { enabled: true, weight: 5 },
         minimizeGaps: { enabled: true, weight: 3 },
         balancePracticals: { enabled: true, weight: 2 },
+        oneLecturePerSubjectPerDay: { enabled: true, weight: 4 },
       },
       generatedTimetables: [],
       isGenerating: false,

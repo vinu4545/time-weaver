@@ -3,8 +3,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useTimetableStore } from "@/stores/timetableStore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ALL_DAYS, ALL_SLOTS, DEFAULT_TIME_SLOTS } from "@/types/timetable";
-import type { Day, SlotId, TimetableEntry, GeneratedTimetable } from "@/types/timetable";
+import { ALL_DAYS, ALL_SLOTS, DEFAULT_TIME_SLOTS, TEACHING_SLOTS } from "@/types/timetable";
+import type { Day, SlotId, TimetableEntry } from "@/types/timetable";
 
 const SUBJECT_COLORS = [
   "bg-info/15 text-info border-info/30",
@@ -21,11 +21,7 @@ function getSubjectColor(subjectId: string, allSubjectIds: string[]): string {
 }
 
 function TimetableGrid({
-  entries,
-  subjects,
-  faculty,
-  rooms,
-  title,
+  entries, subjects, faculty, rooms, title,
 }: {
   entries: TimetableEntry[];
   subjects: { id: string; name: string }[];
@@ -34,7 +30,6 @@ function TimetableGrid({
   title: string;
 }) {
   const allSubjectIds = subjects.map((s) => s.id);
-  const slots = ALL_SLOTS.filter((s) => s !== 'LUNCH');
   const getName = (arr: { id: string; name: string }[], id: string) => arr.find((x) => x.id === id)?.name || id;
 
   return (
@@ -44,13 +39,14 @@ function TimetableGrid({
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/50">
-              <th className="px-3 py-2 text-left font-medium text-muted-foreground w-24">Day</th>
-              {slots.map((s) => {
+              <th className="px-3 py-2 text-left font-medium text-muted-foreground w-20">Day</th>
+              {ALL_SLOTS.map((s) => {
                 const ts = DEFAULT_TIME_SLOTS.find((t) => t.id === s);
+                const isBreak = ts?.isBreak;
                 return (
-                  <th key={s} className="px-2 py-2 text-center font-medium text-muted-foreground min-w-[120px]">
-                    <div>{s}</div>
-                    <div className="text-[10px] font-normal">{ts?.startTime}–{ts?.endTime}</div>
+                  <th key={s} className={`px-1 py-2 text-center font-medium text-muted-foreground ${isBreak ? 'w-12 bg-muted' : 'min-w-[100px]'}`}>
+                    <div className="text-[11px]">{ts?.label}</div>
+                    <div className="text-[9px] font-normal">{ts?.startTime}–{ts?.endTime}</div>
                   </th>
                 );
               })}
@@ -59,14 +55,22 @@ function TimetableGrid({
           <tbody className="divide-y divide-border">
             {ALL_DAYS.map((day) => (
               <tr key={day} className="bg-card">
-                <td className="px-3 py-2 font-medium">{day.slice(0, 3)}</td>
-                {slots.map((slot) => {
+                <td className="px-3 py-2 font-medium text-xs">{day.slice(0, 3)}</td>
+                {ALL_SLOTS.map((slot) => {
+                  const ts = DEFAULT_TIME_SLOTS.find((t) => t.id === slot);
+                  if (ts?.isBreak) {
+                    return (
+                      <td key={slot} className="px-1 py-1 bg-muted/30 text-center">
+                        <span className="text-[9px] text-muted-foreground">{ts.label}</span>
+                      </td>
+                    );
+                  }
                   const entry = entries.find((e) => e.day === day && e.slotId === slot);
-                  if (!entry) return <td key={slot} className="px-2 py-2 text-center text-muted-foreground text-xs">—</td>;
+                  if (!entry) return <td key={slot} className="px-1 py-1 text-center text-muted-foreground text-xs">—</td>;
                   const color = getSubjectColor(entry.subjectId, allSubjectIds);
                   return (
-                    <td key={slot} className="px-1 py-1">
-                      <div className={`rounded-lg border p-2 text-xs ${color}`}>
+                    <td key={slot} className="px-0.5 py-0.5">
+                      <div className={`rounded-lg border p-1.5 text-[10px] leading-tight ${color}`}>
                         <div className="font-semibold truncate">{getName(subjects, entry.subjectId)}</div>
                         <div className="truncate opacity-80">{getName(faculty, entry.facultyId)}</div>
                         <div className="truncate opacity-60">{getName(rooms, entry.roomId)}</div>
@@ -138,14 +142,8 @@ export default function ResultsPage() {
 
               <TabsContent value="division" className="space-y-8">
                 {divisions.map((div) => (
-                  <TimetableGrid
-                    key={div.id}
-                    entries={timetable.entries.filter((e) => e.divisionId === div.id)}
-                    subjects={subjects}
-                    faculty={faculty}
-                    rooms={allRooms}
-                    title={div.name}
-                  />
+                  <TimetableGrid key={div.id} entries={timetable.entries.filter((e) => e.divisionId === div.id)}
+                    subjects={subjects} faculty={faculty} rooms={allRooms} title={div.name} />
                 ))}
               </TabsContent>
 
@@ -153,16 +151,7 @@ export default function ResultsPage() {
                 {faculty.map((fac) => {
                   const facEntries = timetable.entries.filter((e) => e.facultyId === fac.id);
                   if (facEntries.length === 0) return null;
-                  return (
-                    <TimetableGrid
-                      key={fac.id}
-                      entries={facEntries}
-                      subjects={subjects}
-                      faculty={faculty}
-                      rooms={allRooms}
-                      title={fac.name}
-                    />
-                  );
+                  return <TimetableGrid key={fac.id} entries={facEntries} subjects={subjects} faculty={faculty} rooms={allRooms} title={fac.name} />;
                 })}
               </TabsContent>
 
@@ -170,16 +159,7 @@ export default function ResultsPage() {
                 {allRooms.map((room) => {
                   const roomEntries = timetable.entries.filter((e) => e.roomId === room.id);
                   if (roomEntries.length === 0) return null;
-                  return (
-                    <TimetableGrid
-                      key={room.id}
-                      entries={roomEntries}
-                      subjects={subjects}
-                      faculty={faculty}
-                      rooms={allRooms}
-                      title={room.name}
-                    />
-                  );
+                  return <TimetableGrid key={room.id} entries={roomEntries} subjects={subjects} faculty={faculty} rooms={allRooms} title={room.name} />;
                 })}
               </TabsContent>
             </Tabs>

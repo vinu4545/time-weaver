@@ -17,17 +17,16 @@ function SubjectForm({ onSubmit, initial }: { onSubmit: (s: Subject) => void; in
   const [practicalHoursPerWeek, setPracticals] = useState(initial?.practicalHoursPerWeek || 0);
   const [duration, setDuration] = useState<1 | 2 | 3>(initial?.duration || 1);
   const [requiresLab, setRequiresLab] = useState(initial?.requiresLab || false);
+  const [isSpecial, setIsSpecial] = useState(initial?.isSpecial || false);
+  const [specialType, setSpecialType] = useState<'tg' | 'library' | 'language_lab'>(initial?.specialType || 'tg');
 
   const handleSubmit = () => {
     if (!name.trim()) return;
     onSubmit({
       id: initial?.id || crypto.randomUUID(),
-      name: name.trim(),
-      type,
-      lecturesPerWeek,
-      practicalHoursPerWeek,
-      duration,
-      requiresLab,
+      name: name.trim(), type, lecturesPerWeek, practicalHoursPerWeek,
+      duration, requiresLab,
+      ...(isSpecial ? { isSpecial: true, specialType } : {}),
     });
   };
 
@@ -37,6 +36,23 @@ function SubjectForm({ onSubmit, initial }: { onSubmit: (s: Subject) => void; in
         <Label>Subject Name</Label>
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Mathematics" />
       </div>
+      <div className="flex items-center gap-2">
+        <Switch checked={isSpecial} onCheckedChange={setIsSpecial} />
+        <Label>Special Slot (TG / Library / Language Lab)</Label>
+      </div>
+      {isSpecial && (
+        <div>
+          <Label>Special Type</Label>
+          <Select value={specialType} onValueChange={(v) => setSpecialType(v as any)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="tg">TG Slot</SelectItem>
+              <SelectItem value="library">Library</SelectItem>
+              <SelectItem value="language_lab">Language Lab</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div>
         <Label>Type</Label>
         <Select value={type} onValueChange={(v) => setType(v as SubjectType)}>
@@ -90,7 +106,7 @@ export default function SubjectsPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold">Subjects</h1>
-            <p className="text-muted-foreground text-sm">Manage academic subjects</p>
+            <p className="text-muted-foreground text-sm">Manage academic subjects and special slots</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -117,7 +133,7 @@ export default function SubjectsPage() {
                   <th className="px-4 py-3 text-center font-medium text-muted-foreground">Lectures/wk</th>
                   <th className="px-4 py-3 text-center font-medium text-muted-foreground">Practicals/wk</th>
                   <th className="px-4 py-3 text-center font-medium text-muted-foreground">Duration</th>
-                  <th className="px-4 py-3 text-center font-medium text-muted-foreground">Lab</th>
+                  <th className="px-4 py-3 text-center font-medium text-muted-foreground">Special</th>
                   <th className="px-4 py-3 w-12"></th>
                 </tr>
               </thead>
@@ -129,7 +145,9 @@ export default function SubjectsPage() {
                     <td className="px-4 py-3 text-center">{s.lecturesPerWeek}</td>
                     <td className="px-4 py-3 text-center">{s.practicalHoursPerWeek}</td>
                     <td className="px-4 py-3 text-center">{s.duration}hr</td>
-                    <td className="px-4 py-3 text-center">{s.requiresLab ? '✓' : '—'}</td>
+                    <td className="px-4 py-3 text-center">
+                      {s.isSpecial ? <span className="text-xs px-2 py-0.5 rounded-full bg-warning/10 text-warning">{s.specialType?.replace('_', ' ')}</span> : '—'}
+                    </td>
                     <td className="px-4 py-3">
                       <Button variant="ghost" size="icon" onClick={() => removeSubject(s.id)}>
                         <Trash2 className="h-4 w-4 text-destructive" />
