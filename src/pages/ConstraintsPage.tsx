@@ -9,14 +9,15 @@ const constraintLabels: Record<keyof SoftConstraintConfig, { label: string; desc
   avoidBackToBack: { label: "Avoid Back-to-Back Same Subject", desc: "Prevent consecutive periods of the same subject" },
   preferMorningHeavy: { label: "Prefer Morning for Heavy Subjects", desc: "Schedule demanding subjects in morning slots" },
   evenWorkload: { label: "Even Workload Distribution", desc: "Balance classes evenly across the week" },
-  avoidLastSlot: { label: "Avoid Last Slot Overload", desc: "Minimize scheduling in the last period" },
+  avoidLastSlot: { label: "Avoid Last Slot Overload", desc: "Minimize scheduling in P7/P8 periods" },
   facultyPreference: { label: "Faculty Preference Satisfaction", desc: "Respect faculty time preferences" },
   minimizeGaps: { label: "Minimize Timetable Gaps", desc: "Reduce free periods between classes" },
   balancePracticals: { label: "Balance Practicals Across Week", desc: "Spread practical sessions evenly" },
+  oneLecturePerSubjectPerDay: { label: "One Lecture Per Subject Per Day", desc: "Avoid repeating the same subject twice in one day" },
 };
 
 export default function ConstraintsPage() {
-  const { softConstraints, updateSoftConstraints } = useTimetableStore();
+  const { softConstraints, updateSoftConstraints, rules, updateRules } = useTimetableStore();
 
   const toggle = (key: keyof SoftConstraintConfig) => {
     updateSoftConstraints({
@@ -36,9 +37,22 @@ export default function ConstraintsPage() {
         <h1 className="text-2xl font-bold mb-1">Constraint Settings</h1>
         <p className="text-muted-foreground text-sm mb-6">Configure soft constraints and their optimization weights</p>
 
+        {/* Hard constraint toggle */}
+        <div className="rounded-xl border border-border bg-card p-4 mb-4">
+          <div className="flex items-center gap-4">
+            <Switch checked={rules.oneLecturePerSubjectPerDay} onCheckedChange={(v) => updateRules({ oneLecturePerSubjectPerDay: v })} />
+            <div>
+              <p className="font-medium text-sm">One Lecture Per Subject Per Day (Hard Constraint)</p>
+              <p className="text-xs text-muted-foreground">Strictly enforce only one lecture of each subject per day</p>
+            </div>
+          </div>
+        </div>
+
         <div className="rounded-xl border border-border bg-card p-1">
           <div className="px-4 py-3 bg-muted/50 rounded-t-lg">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Hard constraints are always enforced (no faculty/room/batch overlaps)</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              Soft Constraints (optimization scoring) — Hard constraints always enforced
+            </p>
           </div>
 
           <div className="divide-y divide-border">

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Zap, Brain, Shield, BarChart3, Clock, CheckCircle } from "lucide-react";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const features = [
   { icon: Brain, title: "CSP-Powered Engine", desc: "True constraint satisfaction — not random filling. Backtracking + MRV + AC-3." },
@@ -8,7 +9,7 @@ const features = [
   { icon: BarChart3, title: "Optimization Scoring", desc: "Soft constraints with weighted scoring for workload balance and preferences." },
   { icon: Clock, title: "Fast Generation", desc: "Generates valid timetables in seconds with intelligent pruning and heuristics." },
   { icon: CheckCircle, title: "Complete Input System", desc: "Subjects, faculty, rooms, labs, batches, divisions — all configurable." },
-  { icon: Zap, title: "Export Ready", desc: "Download timetables as PDF, CSV, or Excel. Division, faculty, and room views." },
+  { icon: Zap, title: "Export Ready", desc: "Download timetables as PDF, CSV, or JSON. Division, faculty, and room views." },
 ];
 
 export default function LandingPage() {
@@ -24,9 +25,12 @@ export default function LandingPage() {
             </div>
             <span className="text-xl font-bold">TimeForge AI</span>
           </div>
-          <Link to="/dashboard">
-            <Button variant="secondary" size="sm">Open Dashboard</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link to="/dashboard">
+              <Button variant="secondary" size="sm">Open Dashboard</Button>
+            </Link>
+          </div>
         </nav>
 
         <div className="relative z-10 container mx-auto py-24 text-center">
@@ -47,11 +51,6 @@ export default function LandingPage() {
               <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow">
                 Get Started
                 <Zap className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <Link to="/dashboard">
-              <Button variant="outline" size="lg" className="border-primary-foreground/20 text-primary-foreground hover:bg-primary-foreground/10">
-                View Demo
               </Button>
             </Link>
           </div>
