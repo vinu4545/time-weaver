@@ -4,13 +4,16 @@ import { useTimetableStore } from "@/stores/timetableStore";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { generateTimetable } from "@/engine/cspEngine";
-import { Zap, AlertCircle, CheckCircle } from "lucide-react";
+import { Zap, AlertCircle, CheckCircle, Eye } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function GeneratePage() {
   const store = useTimetableStore();
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState("");
+
+  const navigate = useNavigate();
 
   const canGenerate = store.subjects.length > 0 && store.faculty.length > 0 && store.rooms.length > 0 && store.divisions.length > 0;
 
@@ -95,7 +98,14 @@ export default function GeneratePage() {
           <div className="rounded-xl border border-success/30 bg-success/5 p-6 mb-6 text-center">
             <CheckCircle className="h-8 w-8 text-success mx-auto mb-2" />
             <p className="font-semibold">Timetable Generated!</p>
-            <p className="text-sm text-muted-foreground">Score: {store.generatedTimetables[0]?.score.toFixed(1)}</p>
+            <p className="text-sm text-muted-foreground mb-4">Score: {store.generatedTimetables[0]?.score.toFixed(1)}</p>
+            <Button
+              className="w-full gap-2 bg-success hover:bg-success/90 text-white"
+              onClick={() => navigate('/results')}
+            >
+              <Eye className="h-4 w-4" />
+              View Results
+            </Button>
           </div>
         )}
 
@@ -103,7 +113,16 @@ export default function GeneratePage() {
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 mb-6">
             <AlertCircle className="h-8 w-8 text-destructive mx-auto mb-2" />
             <p className="font-semibold text-center">Generation Failed</p>
-            <p className="text-sm text-muted-foreground text-center">{errorMsg}</p>
+            <p className="text-sm text-muted-foreground text-center mb-4">{errorMsg}</p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full gap-2 border-destructive/20 hover:bg-destructive/10"
+              onClick={() => navigate('/results')}
+            >
+              <Eye className="h-4 w-4" />
+              View Sample Timetable
+            </Button>
           </div>
         )}
 

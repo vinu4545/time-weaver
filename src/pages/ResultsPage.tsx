@@ -5,6 +5,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ALL_DAYS, ALL_SLOTS, DEFAULT_TIME_SLOTS, TEACHING_SLOTS } from "@/types/timetable";
 import type { Day, SlotId, TimetableEntry } from "@/types/timetable";
+import { StaticTimetable } from "@/components/StaticTimetable";
+import { LayoutGrid, Table as TableIcon } from "lucide-react";
 
 const SUBJECT_COLORS = [
   "bg-info/15 text-info border-info/30",
@@ -89,21 +91,11 @@ function TimetableGrid({
 
 export default function ResultsPage() {
   const { generatedTimetables, subjects, faculty, rooms, divisions, labs } = useTimetableStore();
-  const [selectedId, setSelectedId] = useState<string>(generatedTimetables[0]?.id || "");
-  const [viewMode, setViewMode] = useState<'division' | 'faculty' | 'room'>('division');
+  const [selectedId, setSelectedId] = useState<string>(generatedTimetables[0]?.id || "sample");
+  const [viewMode, setViewMode] = useState<'division' | 'faculty' | 'room' | 'sample'>('sample');
 
   const timetable = generatedTimetables.find((t) => t.id === selectedId);
   const allRooms = [...rooms.map((r) => ({ id: r.id, name: r.name })), ...labs.map((l) => ({ id: l.id, name: l.name }))];
-
-  if (generatedTimetables.length === 0) {
-    return (
-      <DashboardLayout>
-        <div className="animate-fade-in text-center py-20">
-          <p className="text-muted-foreground">No timetables generated yet. Go to Generate to create one.</p>
-        </div>
-      </DashboardLayout>
-    );
-  }
 
   return (
     <DashboardLayout>
@@ -113,41 +105,60 @@ export default function ResultsPage() {
             <h1 className="text-2xl font-bold">Results</h1>
             <p className="text-muted-foreground text-sm">View generated timetables</p>
           </div>
-          <Select value={selectedId} onValueChange={setSelectedId}>
-            <SelectTrigger className="w-64"><SelectValue placeholder="Select timetable" /></SelectTrigger>
-            <SelectContent>
-              {generatedTimetables.map((t) => (
-                <SelectItem key={t.id} value={t.id}>{t.name} (Score: {t.score.toFixed(1)})</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-3">
+            {generatedTimetables.length > 0 && (
+              <Select value={selectedId} onValueChange={setSelectedId}>
+                <SelectTrigger className="w-64"><SelectValue placeholder="Select timetable" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sample">Sample Template</SelectItem>
+                  {generatedTimetables.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.name} (Score: {t.score.toFixed(1)})</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
         </div>
 
         {timetable && (
-          <>
-            <div className="flex items-center gap-4 mb-6">
-              <span className="text-sm font-mono">Score: {timetable.score.toFixed(1)}</span>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${timetable.conflicts.length === 0 ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-                {timetable.conflicts.length === 0 ? 'No Conflicts' : `${timetable.conflicts.length} Conflicts`}
-              </span>
-              <span className="text-xs text-muted-foreground">{timetable.entries.length} entries</span>
+          <div className="flex items-center gap-4 mb-6">
+            <span className="text-sm font-mono">Score: {timetable.score.toFixed(1)}</span>
+            <span className={`text-xs px-2 py-0.5 rounded-full ${timetable.conflicts.length === 0 ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
+              {timetable.conflicts.length === 0 ? 'No Conflicts' : `${timetable.conflicts.length} Conflicts`}
+            </span>
+            <span className="text-xs text-muted-foreground">{timetable.entries.length} entries</span>
+          </div>
+        )}
+
+        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="mb-6">
+          <TabsList>
+            <TabsTrigger value="sample" className="gap-2"><LayoutGrid className="h-4 w-4" /> Sample Template</TabsTrigger>
+            {generatedTimetables.length > 0 && (
+              <>
+                <TabsTrigger value="division" className="gap-2"><TableIcon className="h-4 w-4" /> Division View</TabsTrigger>
+                <TabsTrigger value="faculty" className="gap-2"><TableIcon className="h-4 w-4" /> Faculty View</TabsTrigger>
+                <TabsTrigger value="room" className="gap-2"><TableIcon className="h-4 w-4" /> Room Utilization</TabsTrigger>
+              </>
+            )}
+          </TabsList>
+
+          <TabsContent value="sample" className="mt-6">
+            <div className="mb-4 p-4 rounded-lg bg-info/10 border border-info/20 text-info text-sm">
+              This is a <strong>static sample</strong> of how the final timetable will look, based on the provided reference.
             </div>
+            <StaticTimetable />
+          </TabsContent>
 
-            <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as any)} className="mb-6">
-              <TabsList>
-                <TabsTrigger value="division">Division View</TabsTrigger>
-                <TabsTrigger value="faculty">Faculty View</TabsTrigger>
-                <TabsTrigger value="room">Room Utilization</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="division" className="space-y-8">
+          {timetable && (
+            <>
+              <TabsContent value="division" className="space-y-8 mt-6">
                 {divisions.map((div) => (
                   <TimetableGrid key={div.id} entries={timetable.entries.filter((e) => e.divisionId === div.id)}
                     subjects={subjects} faculty={faculty} rooms={allRooms} title={div.name} />
                 ))}
               </TabsContent>
 
-              <TabsContent value="faculty" className="space-y-8">
+              <TabsContent value="faculty" className="space-y-8 mt-6">
                 {faculty.map((fac) => {
                   const facEntries = timetable.entries.filter((e) => e.facultyId === fac.id);
                   if (facEntries.length === 0) return null;
@@ -155,16 +166,16 @@ export default function ResultsPage() {
                 })}
               </TabsContent>
 
-              <TabsContent value="room" className="space-y-8">
+              <TabsContent value="room" className="space-y-8 mt-6">
                 {allRooms.map((room) => {
                   const roomEntries = timetable.entries.filter((e) => e.roomId === room.id);
                   if (roomEntries.length === 0) return null;
                   return <TimetableGrid key={room.id} entries={roomEntries} subjects={subjects} faculty={faculty} rooms={allRooms} title={room.name} />;
                 })}
               </TabsContent>
-            </Tabs>
-          </>
-        )}
+            </>
+          )}
+        </Tabs>
       </div>
     </DashboardLayout>
   );
