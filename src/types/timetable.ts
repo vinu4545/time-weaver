@@ -10,9 +10,10 @@ export interface Subject {
   type: SubjectType;
   lecturesPerWeek: number;
   practicalHoursPerWeek: number;
-  duration: 1 | 2 | 3;
+  lectureDuration: 1 | 2 | 3;
+  practicalDuration: 1 | 2 | 3;
   requiresLab: boolean;
-  isSpecial?: boolean; // TG, Library, Language Lab
+  isSpecial?: boolean;
   specialType?: 'tg' | 'library' | 'language_lab';
 }
 

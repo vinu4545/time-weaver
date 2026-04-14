@@ -16,7 +16,7 @@ const TIME_SLOTS = [
 
 const DATA: Record<string, Record<string, any>> = {
   Monday: {
-    "9-10": { content: "A1- AIL-MS-SL2 LAB", span: 2, isLab: true },
+    "9-10": { content: "A1-AIL-MS-SL2 LAB", span: 2, isLab: true },
     "1115-1215": { content: "CO&OS\n(MS)\n32" },
     "1215-115": { content: "DSA\n(MM)\n32" },
     "215-315": { content: "AI\n(MS)\n32" },
@@ -24,7 +24,7 @@ const DATA: Record<string, Record<string, any>> = {
     "415-515": { content: "A2-AEL-ALL-PL1 LAB\nA3-DSAL-RTI-SL1 LAB\nA4-MOOCS-DS-DS LAB", span: 2, isLab: true },
   },
   Tuesday: {
-    "1115-1215": { content: "SDG\n( AK )\n32" },
+    "1115-1215": { content: "SDG\n(AK)\n32" },
     "1215-115": { content: "CO&OS\n(MS)\n32" },
     "215-315": { content: "LIBRARY\nSLOT" },
     "315-415": { content: "PMF\n(AK)\n32" },
@@ -32,24 +32,24 @@ const DATA: Record<string, Record<string, any>> = {
   },
   Wednesday: {
     "10-11": { content: "TG SLOT" },
-    "1115-1215": { content: "A1- MOOCS-NG-DS LAB\nA2-DSAL-MM-SL1 LAB\nA3-AIL-VB-SL2 LAB\nA4-AEL-SS-PL1 LAB", span: 2, isLab: true },
+    "1115-1215": { content: "A1-MOOCS-NG-DS LAB\nA2-DSAL-MM-SL1 LAB\nA3-AIL-VB-SL2 LAB\nA4-AEL-SS-PL1 LAB", span: 2, isLab: true },
     "215-315": { content: "DSA\n(MM)\n32" },
-    "315-415": { content: "PSD\n( NS )\n32" },
-    "415-515": { content: "SDG\n( AK )\n32" },
+    "315-415": { content: "PSD\n(NS)\n32" },
+    "415-515": { content: "SDG\n(AK)\n32" },
     "515-615": { content: "PMF\n(AK)\n32" },
   },
   Thursday: {
     "1115-1215": { content: "DSA\n(MM)\n32" },
     "1215-115": { content: "AI\n(MS)\n32" },
     "315-415": { content: "DS\n(SG)\n32" },
-    "415-515": { content: "A1- AEL-ALL-PL1 LAB\nA3-MOOCS-DS-DS LAB\nA4-DSAL-RTI-SL1 LAB", span: 2, isLab: true },
+    "415-515": { content: "A1-AEL-ALL-PL1 LAB\nA3-MOOCS-DS-DS LAB\nA4-DSAL-RTI-SL1 LAB", span: 2, isLab: true },
   },
   Friday: {
     "10-11": { content: "TG SLOT" },
     "1115-1215": { content: "DSA\n(MM)\n25" },
     "1215-115": { content: "AE\n(SS)\n25" },
     "215-315": { content: "PWP\n(ANH)\n32" },
-    "415-515": { content: "A1- PSD-RRW ,\nA2-PSD-RRW ,\nA3-PSD-RRW ,\nA4-PSD-RRW (LANGUAGE LAB)", span: 2, isLab: true },
+    "415-515": { content: "A1-PSD-RRW,\nA2-PSD-RRW,\nA3-PSD-RRW,\nA4-PSD-RRW (LANGUAGE LAB)", span: 2, isLab: true },
   },
   Saturday: {
     "9-10": { content: "A2-AIL-NR-BR", span: 2, color: "text-red-500" },
@@ -112,7 +112,7 @@ export function StaticTimetable() {
               <tr className="bg-slate-100 dark:bg-slate-900">
                 <th className="border border-slate-300 dark:border-slate-700 p-2 w-20">Day \ Time</th>
                 {TIME_SLOTS.map((slot) => (
-                  <th key={slot.id} className="border border-slate-300 dark:border-slate-700 p-2 text-center min-w-[80px]">
+                  <th key={slot.id} className="border border-slate-300 dark:border-slate-700 p-2 text-center min-w-[100px]">
                     {slot.label}
                   </th>
                 ))}
@@ -145,7 +145,7 @@ export function StaticTimetable() {
 
                     // Check if previous cell spanned into this one
                     let isSpanned = false;
-                    for (let i = 1; i < idx; i++) {
+                    for (let i = 0; i < idx; i++) {
                       const prevSlot = TIME_SLOTS[i];
                       const prevData = DATA[day]?.[prevSlot.id];
                       if (prevData?.span > 1 && idx <= i + prevData.span - 1) {
@@ -159,11 +159,13 @@ export function StaticTimetable() {
                       <td
                         key={slot.id}
                         colSpan={cellData?.span || 1}
-                        className={`border border-slate-300 dark:border-slate-700 p-1 text-center align-middle whitespace-pre-line ${
+                        className={`border border-slate-300 dark:border-slate-700 p-1 text-center align-middle ${
                           cellData?.isLab ? "font-medium" : ""
                         } ${cellData?.color || ""}`}
                       >
-                        {cellData?.content || ""}
+                        <div className="flex flex-col justify-center items-center min-h-[60px] whitespace-pre-line leading-tight">
+                          {cellData?.content || ""}
+                        </div>
                       </td>
                     );
                   })}
