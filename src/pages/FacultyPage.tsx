@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Trash2 } from "lucide-react";
 import type { Faculty, FacultyType, Day, SlotId } from "@/types/timetable";
-import { ALL_DAYS, ALL_SLOTS } from "@/types/timetable";
+import { ALL_DAYS, ALL_SLOTS, DEFAULT_TIME_SLOTS, TEACHING_SLOTS } from "@/types/timetable";
 
 function FacultyForm({ onSubmit, subjects }: { onSubmit: (f: Faculty) => void; subjects: { id: string; name: string }[] }) {
   const [name, setName] = useState("");
@@ -17,11 +17,11 @@ function FacultyForm({ onSubmit, subjects }: { onSubmit: (f: Faculty) => void; s
   const [maxLoad, setMaxLoad] = useState(18);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [availability, setAvailability] = useState<Record<Day, SlotId[]>>({
-    Monday: [...ALL_SLOTS],
-    Tuesday: [...ALL_SLOTS],
-    Wednesday: [...ALL_SLOTS],
-    Thursday: [...ALL_SLOTS],
-    Friday: [...ALL_SLOTS],
+    Monday: [...TEACHING_SLOTS],
+    Tuesday: [...TEACHING_SLOTS],
+    Wednesday: [...TEACHING_SLOTS],
+    Thursday: [...TEACHING_SLOTS],
+    Friday: [...TEACHING_SLOTS],
   });
 
   const toggleSlot = (day: Day, slot: SlotId) => {
@@ -100,19 +100,27 @@ function FacultyForm({ onSubmit, subjects }: { onSubmit: (f: Faculty) => void; s
               {ALL_DAYS.map((day) => (
                 <tr key={day}>
                   <td className="py-1 pr-2 font-medium">{day.slice(0, 3)}</td>
-                  {ALL_SLOTS.map((slot) => (
-                    <td key={slot} className="text-center px-1 py-1">
-                      <button
-                        type="button"
-                        onClick={() => toggleSlot(day, slot)}
-                        className={`w-6 h-6 rounded text-xs transition ${
-                          availability[day].includes(slot) ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                        }`}
-                      >
-                        {availability[day].includes(slot) ? '✓' : '×'}
-                      </button>
-                    </td>
-                  ))}
+                  {ALL_SLOTS.map((slot) => {
+                    const isBreak = DEFAULT_TIME_SLOTS.find(ts => ts.id === slot)?.isBreak;
+                    return (
+                      <td key={slot} className="text-center px-1 py-1">
+                        <button
+                          type="button"
+                          onClick={() => !isBreak && toggleSlot(day, slot)}
+                          disabled={isBreak}
+                          className={`w-6 h-6 rounded text-xs transition ${
+                            isBreak 
+                              ? 'bg-muted/30 text-muted-foreground/50 cursor-not-allowed'
+                              : availability[day].includes(slot) 
+                                ? 'bg-primary text-primary-foreground hover:bg-primary/90' 
+                                : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                          }`}
+                        >
+                          {isBreak ? '—' : availability[day].includes(slot) ? '✓' : '×'}
+                        </button>
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
