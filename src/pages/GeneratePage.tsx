@@ -3,7 +3,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useTimetableStore } from "@/stores/timetableStore";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { generateTimetable } from "@/engine/cspEngine";
+import { generateTimetable } from "../../Backend";
 import { Zap, AlertCircle, CheckCircle, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -27,9 +27,9 @@ export default function GeneratePage() {
     }, 200);
 
     // Run CSP engine (synchronous but wrapped in timeout for UI update)
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
-        const result = generateTimetable({
+        const result = await generateTimetable({
           subjects: store.subjects,
           faculty: store.faculty,
           rooms: store.rooms,

@@ -1,4 +1,6 @@
 import { Card } from "@/components/ui/card";
+import type { TimetableEntry, Subject, Faculty, Room } from "@/types/timetable";
+import { useMemo } from "react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const TIME_SLOTS = [
@@ -14,77 +16,160 @@ const TIME_SLOTS = [
   { label: "5:15 PM to 6:15 PM", id: "515-615" },
 ];
 
-const DATA: Record<string, Record<string, any>> = {
-  Monday: {
-    "9-10": { content: "A1-AIL-MS-SL2 LAB", span: 2, isLab: true },
-    "1115-1215": { content: "CO&OS\n(MS)\n32" },
-    "1215-115": { content: "DSA\n(MM)\n32" },
-    "215-315": { content: "AI\n(MS)\n32" },
-    "315-415": { content: "AE\n(SS)\n32" },
-    "415-515": { content: "A2-AEL-ALL-PL1 LAB\nA3-DSAL-RTI-SL1 LAB\nA4-MOOCS-DS-DS LAB", span: 2, isLab: true },
-  },
-  Tuesday: {
-    "1115-1215": { content: "SDG\n(AK)\n32" },
-    "1215-115": { content: "CO&OS\n(MS)\n32" },
-    "215-315": { content: "LIBRARY\nSLOT" },
-    "315-415": { content: "PMF\n(AK)\n32" },
-    "415-515": { content: "AI\n(MS)\n32" },
-  },
-  Wednesday: {
-    "10-11": { content: "TG SLOT" },
-    "1115-1215": { content: "A1-MOOCS-NG-DS LAB\nA2-DSAL-MM-SL1 LAB\nA3-AIL-VB-SL2 LAB\nA4-AEL-SS-PL1 LAB", span: 2, isLab: true },
-    "215-315": { content: "DSA\n(MM)\n32" },
-    "315-415": { content: "PSD\n(NS)\n32" },
-    "415-515": { content: "SDG\n(AK)\n32" },
-    "515-615": { content: "PMF\n(AK)\n32" },
-  },
-  Thursday: {
-    "1115-1215": { content: "DSA\n(MM)\n32" },
-    "1215-115": { content: "AI\n(MS)\n32" },
-    "315-415": { content: "DS\n(SG)\n32" },
-    "415-515": { content: "A1-AEL-ALL-PL1 LAB\nA3-MOOCS-DS-DS LAB\nA4-DSAL-RTI-SL1 LAB", span: 2, isLab: true },
-  },
-  Friday: {
-    "10-11": { content: "TG SLOT" },
-    "1115-1215": { content: "DSA\n(MM)\n25" },
-    "1215-115": { content: "AE\n(SS)\n25" },
-    "215-315": { content: "PWP\n(ANH)\n32" },
-    "415-515": { content: "A1-PSD-RRW,\nA2-PSD-RRW,\nA3-PSD-RRW,\nA4-PSD-RRW (LANGUAGE LAB)", span: 2, isLab: true },
-  },
-  Saturday: {
-    "9-10": { content: "A2-AIL-NR-BR", span: 2, color: "text-red-500" },
-    "1115-1215": { content: "A2-AIL-NR-BR", span: 2, color: "text-red-500" },
-  },
-};
+export interface TimetableData {
+  entries: TimetableEntry[];
+  subjects: Subject[];
+  faculty: Faculty[];
+  rooms: Room[];
+  className?: string;
+  divisionName?: string;
+  classTeacher?: string;
+  classRoom?: string;
+  effectiveDate?: string;
+}
 
-const FACULTY = [
-  { abbr: "MM", name: "Mrs. Megha Mane", abbr2: "ALL", name2: "Mrs. Aparna Lavangade" },
-  { abbr: "LD", name: "Dr. Latika Desai", abbr2: "ANH", name2: "Mrs. Ashika Hirulkar" },
-  { abbr: "NG", name: "Mrs. Nehal Ganpule", abbr2: "SG", name2: "Dr. Suwarna Gothane" },
-  { abbr: "VB", name: "Mrs. Vidya Bhosale", abbr2: "RTI", name2: "Ms. Rajshri Ingle" },
-  { abbr: "SS", name: "Mrs. Shruti Sekra", abbr2: "DS", name2: "Dr. Deepali Sale" },
-  { abbr: "MS", name: "Dr. Manish Sharma", abbr2: "AK", name2: "Mr. Ajit Kadam" },
-  { abbr: "NS", name: "Nishu Sharma", abbr2: "RRW", name2: "Rohit R.Warvadkar" },
-];
+interface FacultyWithInitials {
+  id: string;
+  name: string;
+  initials: string;
+}
 
-const COURSES = [
-  { abbr: "DSA", name: "Data Structure & Algorithm" },
-  { abbr: "CO&OS", name: "Computer Organization & Operating System" },
-  { abbr: "AI", name: "Artificial Intelligence" },
-  { abbr: "AE", name: "Advanced Excel" },
-  { abbr: "DS", name: "Data Science" },
-  { abbr: "SDG", name: "Sustainable Development Goals" },
-  { abbr: "PTC", name: "Professional & Technical Communication" },
-  { abbr: "PSD", name: "Professional Skill Development" },
-  { abbr: "PWP", name: "Personal & Workspace Productivity" },
-  { abbr: "PMF", name: "Project Management & Finance" },
-];
+function formatCellContent(entry: TimetableEntry, subjects: Subject[], faculty: Faculty[], rooms: Room[]): string | null {
+  const subject = subjects.find(s => s.id === entry.subjectId);
+  const fac = faculty.find(f => f.id === entry.facultyId);
+  const room = rooms.find(r => r.id === entry.roomId);
 
-export function StaticTimetable() {
+  if (!subject) return null;
+
+  const lines: string[] = [subject.name];
+
+  if (fac && fac.name) {
+    const initials = fac.name
+      .split(/\s+/)
+      .filter(w => !['Dr.', 'Mr.', 'Mrs.', 'Prof.'].includes(w))
+      .map((n: string) => n[0])
+      .join('')
+      .toUpperCase();
+    lines.push(`(${initials})`);
+  }
+
+  if (room && room.name) {
+    lines.push(room.name);
+  }
+
+  return lines.join('\n');
+}
+
+function getAbbr(name: string): string {
+  return name
+    .split(/\s+/)
+    .map(w => {
+      if (w === '&') return '&';
+      return w[0];
+    })
+    .join('')
+    .toUpperCase();
+}
+
+function AbbreviationTable({ 
+  data, 
+  headers 
+}: { 
+  data: { abbr: string; name: string }[]; 
+  headers: [string, string];
+}) {
+  const mid = Math.ceil(data.length / 2);
+  const left = data.slice(0, mid);
+  const right = data.slice(mid);
+
+  const renderTable = (items: { abbr: string; name: string }[]) => (
+    <table className="w-full text-[9px] border-collapse border border-slate-300 dark:border-slate-700">
+      <thead>
+        <tr className="bg-slate-50 dark:bg-slate-900/50">
+          <th className="border border-slate-300 dark:border-slate-700 p-1 text-left w-12 font-semibold">{headers[0]}</th>
+          <th className="border border-slate-300 dark:border-slate-700 p-1 text-left font-semibold">{headers[1]}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {items.map((item, i) => (
+          <tr key={i} className="h-5">
+            <td className="border border-slate-300 dark:border-slate-700 p-1 font-bold">{item.abbr}</td>
+            <td className="border border-slate-300 dark:border-slate-700 p-1">{item.name}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+
   return (
-    <Card className="p-6 overflow-x-auto bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xl">
+    <div className="flex-1 grid grid-cols-2 gap-0 border border-slate-300 dark:border-slate-700">
+      <div className="border-r border-slate-300 dark:border-slate-700">{renderTable(left)}</div>
+      <div>{renderTable(right)}</div>
+    </div>
+  );
+}
+
+function TimetableFooter({ faculty, subjects }: { faculty: Faculty[]; subjects: Subject[] }) {
+  const facultyData = faculty.map(f => ({
+    abbr: f.name
+      .split(/\s+/)
+      .filter(w => !['Dr.', 'Mr.', 'Mrs.', 'Prof.'].includes(w))
+      .map(n => n[0])
+      .join('')
+      .toUpperCase(),
+    name: f.name
+  }));
+
+  const subjectData = subjects
+    .filter(s => !s.isSpecial) // Exclude special slots like TG/Library from abbr table
+    .map(s => ({
+      abbr: getAbbr(s.name),
+      name: s.name
+    }));
+
+  if (facultyData.length === 0 && subjectData.length === 0) return null;
+
+  return (
+    <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div>
+        <AbbreviationTable 
+          data={facultyData} 
+          headers={["Abbr.", "Name of Faculty"]} 
+        />
+      </div>
+      <div>
+        <AbbreviationTable 
+          data={subjectData} 
+          headers={["Abbr.", "Name of Course"]} 
+        />
+      </div>
+    </div>
+  );
+}
+
+export function StaticTimetable({
+  entries = [],
+  subjects = [],
+  faculty = [],
+  rooms = [],
+  className,
+  divisionName = "A",
+  classTeacher,
+  classRoom = "32",
+  effectiveDate = "05/01/2026"
+}: TimetableData) {
+  const entriesByDayAndSlot = useMemo(() => {
+    const map: Record<string, TimetableEntry> = {};
+    for (const entry of entries) {
+      const key = `${entry.day}|${entry.slotId}`;
+      map[key] = entry;
+    }
+    return map;
+  }, [entries]);
+
+  return (
+    <Card className={`p-6 overflow-x-auto bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 shadow-xl ${className || ''}`}>
       <div className="min-w-[1000px]">
-        {/* Header Section */}
         <div className="text-center mb-6 space-y-1">
           <h2 className="text-xl font-bold uppercase tracking-tight">D.Y. Patil College of Engineering, Akurdi, Pune-44</h2>
           <p className="text-sm italic text-muted-foreground">An Autonomous Institute with effect from the academic year 2024-25</p>
@@ -95,17 +180,15 @@ export function StaticTimetable() {
           </div>
         </div>
 
-        {/* Info Row */}
         <div className="grid grid-cols-4 gap-4 mb-4 text-sm font-medium">
           <div>Class: SY</div>
-          <div className="text-center">Div: A</div>
-          <div className="text-center">w.e.f. - 05/01/2026</div>
-          <div className="text-right">Class Room No: 32</div>
+          <div className="text-center">Div: {divisionName}</div>
+          <div className="text-center">w.e.f. - {effectiveDate}</div>
+          <div className="text-right">Class Room No: {classRoom}</div>
           <div>Date: </div>
-          <div className="col-span-3 text-right">Name of the Class Teacher : Mrs. Shurti Sekra</div>
+          {classTeacher && <div className="col-span-3 text-right">Name of the Class Teacher : {classTeacher}</div>}
         </div>
 
-        {/* Timetable Grid */}
         <div className="border border-slate-300 dark:border-slate-700">
           <table className="w-full border-collapse text-[11px]">
             <thead>
@@ -127,7 +210,6 @@ export function StaticTimetable() {
                     {day === "Saturday" && <div className="font-normal text-[9px] mt-1">(11/4/2026)</div>}
                   </td>
                   {TIME_SLOTS.map((slot, idx) => {
-                    const cellData = DATA[day]?.[slot.id];
                     if (slot.isBreak) {
                       if (day === "Monday") {
                         return (
@@ -143,28 +225,56 @@ export function StaticTimetable() {
                       return null;
                     }
 
-                    // Check if previous cell spanned into this one
+                    const key = `${day}|${slot.id}`;
+                    const entry = entriesByDayAndSlot[key];
+
                     let isSpanned = false;
                     for (let i = 0; i < idx; i++) {
                       const prevSlot = TIME_SLOTS[i];
-                      const prevData = DATA[day]?.[prevSlot.id];
-                      if (prevData?.span > 1 && idx <= i + prevData.span - 1) {
+                      const prevKey = `${day}|${prevSlot.id}`;
+                      const prevEntry = entriesByDayAndSlot[prevKey];
+                      if (prevEntry && prevEntry.slotId === slot.id) {
                         isSpanned = true;
                         break;
                       }
                     }
                     if (isSpanned) return null;
 
+                    if (!entry) {
+                      return (
+                        <td
+                          key={slot.id}
+                          className="border border-slate-300 dark:border-slate-700 p-1 text-center align-middle"
+                        >
+                          <div className="flex flex-col justify-center items-center min-h-[60px] text-muted-foreground">
+                            —
+                          </div>
+                        </td>
+                      );
+                    }
+
+                    const content = formatCellContent(entry, subjects, faculty, rooms);
+
+                    if (!content) {
+                      return (
+                        <td
+                          key={slot.id}
+                          className="border border-slate-300 dark:border-slate-700 p-1 text-center align-middle"
+                        >
+                          <div className="flex flex-col justify-center items-center min-h-[60px] text-muted-foreground">
+                            —
+                          </div>
+                        </td>
+                      );
+                    }
+
                     return (
                       <td
                         key={slot.id}
-                        colSpan={cellData?.span || 1}
-                        className={`border border-slate-300 dark:border-slate-700 p-1 text-center align-middle ${
-                          cellData?.isLab ? "font-medium" : ""
-                        } ${cellData?.color || ""}`}
+                        className="border border-slate-300 dark:border-slate-700 p-1 text-center align-middle"
                       >
                         <div className="flex flex-col justify-center items-center min-h-[60px] whitespace-pre-line leading-tight">
-                          {cellData?.content || ""}
+                          {content}
                         </div>
                       </td>
                     );
@@ -174,58 +284,8 @@ export function StaticTimetable() {
             </tbody>
           </table>
         </div>
-
-        {/* Footer Tables */}
-        <div className="mt-6 grid grid-cols-2 gap-8 text-[10px]">
-          {/* Faculty Abbreviations */}
-          <div>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-slate-100 dark:bg-slate-900">
-                  <th className="border border-slate-300 dark:border-slate-700 p-1 text-left">Abbrv.</th>
-                  <th className="border border-slate-300 dark:border-slate-700 p-1 text-left">Name of Faculty</th>
-                  <th className="border border-slate-300 dark:border-slate-700 p-1 text-left">Abbrv.</th>
-                  <th className="border border-slate-300 dark:border-slate-700 p-1 text-left">Name of Faculty</th>
-                </tr>
-              </thead>
-              <tbody>
-                {FACULTY.map((f, i) => (
-                  <tr key={i}>
-                    <td className="border border-slate-300 dark:border-slate-700 p-1 font-semibold">{f.abbr}</td>
-                    <td className="border border-slate-300 dark:border-slate-700 p-1">{f.name}</td>
-                    <td className="border border-slate-300 dark:border-slate-700 p-1 font-semibold">{f.abbr2}</td>
-                    <td className="border border-slate-300 dark:border-slate-700 p-1">{f.name2}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Course Abbreviations */}
-          <div>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-slate-100 dark:bg-slate-900">
-                  <th className="border border-slate-300 dark:border-slate-700 p-1 text-left">Abbrv.</th>
-                  <th className="border border-slate-300 dark:border-slate-700 p-1 text-left">Name of Course</th>
-                  <th className="border border-slate-300 dark:border-slate-700 p-1 text-left">Abbrv.</th>
-                  <th className="border border-slate-300 dark:border-slate-700 p-1 text-left">Name of Course</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i}>
-                    <td className="border border-slate-300 dark:border-slate-700 p-1 font-semibold">{COURSES[i].abbr}</td>
-                    <td className="border border-slate-300 dark:border-slate-700 p-1">{COURSES[i].name}</td>
-                    <td className="border border-slate-300 dark:border-slate-700 p-1 font-semibold">{COURSES[i+5]?.abbr}</td>
-                    <td className="border border-slate-300 dark:border-slate-700 p-1">{COURSES[i+5]?.name}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
+      <TimetableFooter faculty={faculty} subjects={subjects} />
     </Card>
   );
 }
