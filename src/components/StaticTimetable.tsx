@@ -4,16 +4,16 @@ import { useMemo } from "react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const TIME_SLOTS = [
-  { label: "9 AM to 10 AM", id: "9-10" },
-  { label: "10 AM to 11 AM", id: "10-11" },
-  { label: "11 AM to 11:15 AM", id: "break-1", isBreak: true, labelShort: "SHORT BREAK" },
-  { label: "11:15 AM to 12:15 PM", id: "1115-1215" },
-  { label: "12:15 PM to 1:15 PM", id: "1215-115" },
-  { label: "1:15 PM to 2:15 PM", id: "break-2", isBreak: true, labelShort: "LUNCH BREAK" },
-  { label: "2:15 PM to 3:15 PM", id: "215-315" },
-  { label: "3:15 PM to 4:15 PM", id: "315-415" },
-  { label: "4:15 PM to 5:15 PM", id: "415-515" },
-  { label: "5:15 PM to 6:15 PM", id: "515-615" },
+  { label: "9 AM to 10 AM", id: "P1" },
+  { label: "10 AM to 11 AM", id: "P2" },
+  { label: "11 AM to 11:15 AM", id: "BREAK1", isBreak: true, labelShort: "SHORT BREAK" },
+  { label: "11:15 AM to 12:15 PM", id: "P3" },
+  { label: "12:15 PM to 1:15 PM", id: "P4" },
+  { label: "1:15 PM to 2:15 PM", id: "LUNCH", isBreak: true, labelShort: "LUNCH BREAK" },
+  { label: "2:15 PM to 3:15 PM", id: "P5" },
+  { label: "3:15 PM to 4:15 PM", id: "P6" },
+  { label: "4:15 PM to 5:15 PM", id: "P7" },
+  { label: "5:15 PM to 6:15 PM", id: "P8" },
 ];
 
 export interface TimetableData {

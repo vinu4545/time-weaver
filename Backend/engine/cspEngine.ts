@@ -83,14 +83,37 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
     // Reset hard constraints before search
     hardConstraints.forEach(c => c.reset?.());
 
-    const backtrackingSearch = () => backtracking.search(
-      expandedSubjects as any,
-      slots,
-      domains as any,
-      assignmentManager
-    );
+    let bestSolution: any[] = [];
+    let bestScore = -1;
+    const startTime = Date.now();
+    const maxIterations = 5;
+    let iterations = 0;
 
-    const bestSolution = backtrackingSearch();
+    while (iterations < maxIterations && Date.now() - startTime < 3000) {
+      iterations++;
+
+      const assignment = backtracking.search(
+        expandedSubjects as any,
+        slots,
+        domains as any,
+        assignmentManager
+      );
+
+      if (assignment && assignment.length > 0) {
+        const scoreCalculator = new ScoreCalculator(softConstraintsList);
+        const score = scoreCalculator.calculateScore(assignment as any);
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestSolution = assignment;
+        }
+        
+        // If we found a perfect or very good solution, stop early
+        if (score >= 95) break;
+      }
+
+      domainGenerator.regenerateDomains(domains, expandedSubjects, slots);
+    }
 
     if (bestSolution && bestSolution.length > 0) {
       const scoreCalculator = new ScoreCalculator(softConstraintsList);
@@ -123,6 +146,7 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
     const fallbackEntries: TimetableEntry[] = [];
     const usedFacultySlots = new Set<string>();
     const usedRoomSlots = new Set<string>();
+    const usedBatchSlots = new Set<string>();
 
     for (const subject of expandedSubjects) {
       const eligibleFacIds = allMappings
@@ -130,7 +154,10 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
         .map(m => m.facultyId);
       
       let assigned = false;
-      for (const slot of slots) {
+      // Try multiple slots for each subject to find an open one
+      const shuffledSlots = [...slots].sort(() => Math.random() - 0.5);
+      
+      for (const slot of shuffledSlots) {
         if (assigned) break;
 
         for (const facId of eligibleFacIds) {
@@ -138,6 +165,16 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
 
           const facultyKey = `${slot.day}|${slot.id}|${facId}`;
           if (usedFacultySlots.has(facultyKey)) continue;
+
+          // Check batch conflict for practicals
+          if (subject.batchId) {
+            const batchKey = `${slot.day}|${slot.id}|${subject.batchId}`;
+            if (usedBatchSlots.has(batchKey)) continue;
+          } else {
+            // Check division conflict for lectures
+            const divKey = `${slot.day}|${slot.id}|${subject.divisionId}`;
+            if (usedBatchSlots.has(divKey)) continue;
+          }
 
           for (const roomId of slot.rooms) {
             const roomKey = `${slot.day}|${slot.id}|${roomId}`;
@@ -156,6 +193,11 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
 
             usedFacultySlots.add(facultyKey);
             usedRoomSlots.add(roomKey);
+            if (subject.batchId) {
+              usedBatchSlots.add(`${slot.day}|${slot.id}|${subject.batchId}`);
+            } else {
+              usedBatchSlots.add(`${slot.day}|${slot.id}|${subject.divisionId}`);
+            }
             assigned = true;
             break;
           }

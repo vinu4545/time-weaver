@@ -21,8 +21,8 @@ describe("StaticTimetable", () => {
   ];
 
   const mockEntries: TimetableEntry[] = [
-    { day: "Monday", slotId: "9-10", divisionId: "div1", subjectId: "sub1", facultyId: "fac1", roomId: "room1", type: "lecture" },
-    { day: "Monday", slotId: "1115-1215", divisionId: "div1", subjectId: "sub2", facultyId: "fac2", roomId: "lab1", type: "practical" },
+    { day: "Monday", slotId: "P1", divisionId: "div1", subjectId: "sub1", facultyId: "fac1", roomId: "room1", type: "lecture" },
+    { day: "Monday", slotId: "P3", divisionId: "div1", subjectId: "sub2", facultyId: "fac2", roomId: "lab1", type: "practical" },
   ];
 
   describe("Empty State Handling", () => {
@@ -42,7 +42,7 @@ describe("StaticTimetable", () => {
 
     it("should render empty cells when faculty data is missing for an entry", () => {
       const entriesWithoutFaculty: TimetableEntry[] = [
-        { day: "Monday", slotId: "9-10", divisionId: "div1", subjectId: "sub1", facultyId: "", roomId: "room1", type: "lecture" },
+        { day: "Monday", slotId: "P1", divisionId: "div1", subjectId: "sub1", facultyId: "", roomId: "room1", type: "lecture" },
       ];
 
       render(
@@ -185,7 +185,7 @@ describe("StaticTimetable", () => {
   describe("Validation", () => {
     it("should not render placeholder or default text for missing values", () => {
       const entriesWithPartialData: TimetableEntry[] = [
-        { day: "Monday", slotId: "9-10", divisionId: "div1", subjectId: "sub1", facultyId: "", roomId: "", type: "lecture" },
+        { day: "Monday", slotId: "P1", divisionId: "div1", subjectId: "sub1", facultyId: "", roomId: "", type: "lecture" },
       ];
 
       render(

@@ -19,25 +19,10 @@ export class SlotBuilder {
       { id: "P8", start: "17:15", end: "18:15" },
     ];
 
-    const slotMap: Record<string, string> = {
-      "9-10": "P1",
-      "10-11": "P2",
-      "1115-1215": "P3",
-      "1215-115": "P4",
-      "215-315": "P5",
-      "315-415": "P6",
-      "415-515": "P7",
-      "515-615": "P8",
-    };
-
-    const reverseSlotMap: Record<string, string> = Object.fromEntries(
-      Object.entries(slotMap).map(([k, v]) => [v, k])
-    );
-
     for (const day of workingDays) {
       for (const slot of teachingSlots) {
         slots.push({
-          id: reverseSlotMap[slot.id] as any || slot.id,
+          id: slot.id as any,
           day,
           startTime: slot.start,
           endTime: slot.end,

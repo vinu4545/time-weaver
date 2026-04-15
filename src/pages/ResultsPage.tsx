@@ -172,24 +172,27 @@ export default function ResultsPage() {
 
           {timetable && (
             <>
-              <TabsContent value="division" className="space-y-8 mt-6">
+              <TabsContent value="division" className="space-y-12 mt-6">
                 {divisions.length > 0 ? (
                   divisions.map((div) => (
-                    <TimetableGrid key={div.id} 
-                      entries={timetable.entries.filter((e) => e.divisionId === div.id)}
-                      subjects={subjects} 
-                      faculty={faculty} 
-                      rooms={allRooms} 
-                      title={div.name} 
-                    />
+                    <div key={div.id} className="space-y-4">
+                      <h3 className="text-lg font-semibold px-2">Division: {div.name}</h3>
+                      <StaticTimetable 
+                        entries={timetable.entries.filter((e) => e.divisionId === div.id)}
+                        subjects={subjects} 
+                        faculty={faculty} 
+                        rooms={allRooms} 
+                        divisionName={div.name}
+                      />
+                    </div>
                   ))
                 ) : (
-                  <TimetableGrid 
+                  <StaticTimetable 
                     entries={timetable.entries}
                     subjects={subjects} 
                     faculty={faculty} 
                     rooms={allRooms} 
-                    title="Division A"
+                    divisionName="A"
                   />
                 )}
               </TabsContent>
