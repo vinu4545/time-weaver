@@ -5,20 +5,54 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Trash2 } from "lucide-react";
+import type { FacultyAllocationType } from "@/types/timetable";
+
+type DivisionFacultySelection = {
+  facultyId: string;
+  allocationType: FacultyAllocationType;
+};
 
 export default function DivisionsPage() {
-  const { divisions, batches, addDivision, removeDivision } = useTimetableStore();
+  const { divisions, batches, faculty, addDivision, removeDivision } = useTimetableStore();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [total, setTotal] = useState(120);
   const [selectedBatches, setSelectedBatches] = useState<string[]>([]);
+  const [selectedFaculty, setSelectedFaculty] = useState<DivisionFacultySelection[]>([]);
+
+  const updateFacultyAllocation = (facultyId: string, checked: boolean) => {
+    setSelectedFaculty((prev) => {
+      if (checked) {
+        if (prev.some((f) => f.facultyId === facultyId)) return prev;
+        return [...prev, { facultyId, allocationType: "both" }];
+      }
+      return prev.filter((f) => f.facultyId !== facultyId);
+    });
+  };
+
+  const setFacultyAllocationType = (facultyId: string, allocationType: FacultyAllocationType) => {
+    setSelectedFaculty((prev) =>
+      prev.map((f) => (f.facultyId === facultyId ? { ...f, allocationType } : f))
+    );
+  };
 
   const handleAdd = () => {
     if (!name.trim()) return;
-    addDivision({ id: crypto.randomUUID(), name: name.trim(), totalStudents: total, batchIds: selectedBatches });
-    setName(""); setTotal(120); setSelectedBatches([]); setOpen(false);
+    addDivision({
+      id: crypto.randomUUID(),
+      name: name.trim(),
+      totalStudents: total,
+      batchIds: selectedBatches,
+      facultyAllocations: selectedFaculty,
+    });
+    setName("");
+    setTotal(120);
+    setSelectedBatches([]);
+    setSelectedFaculty([]);
+    setOpen(false);
   };
 
   return (
@@ -47,6 +81,44 @@ export default function DivisionsPage() {
                     {batches.length === 0 && <span className="text-xs text-muted-foreground">Add batches first</span>}
                   </div>
                 </div>
+                <div>
+                  <Label className="mb-2 block">Faculty Allocated To Division</Label>
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {faculty.map((f) => {
+                      const allocation = selectedFaculty.find((x) => x.facultyId === f.id);
+                      return (
+                        <div key={f.id} className="border border-border rounded-md p-2">
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <Checkbox
+                              checked={!!allocation}
+                              onCheckedChange={(c) => updateFacultyAllocation(f.id, !!c)}
+                            />
+                            <span>{f.name}</span>
+                          </label>
+                          {allocation && (
+                            <div className="mt-2">
+                              <Label className="text-xs text-muted-foreground">Allocation Type</Label>
+                              <Select
+                                value={allocation.allocationType}
+                                onValueChange={(v) => setFacultyAllocationType(f.id, v as FacultyAllocationType)}
+                              >
+                                <SelectTrigger className="h-8 text-xs mt-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="lecture">Lecture</SelectItem>
+                                  <SelectItem value="practical">Practical</SelectItem>
+                                  <SelectItem value="both">Both</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    {faculty.length === 0 && <span className="text-xs text-muted-foreground">Add faculty first</span>}
+                  </div>
+                </div>
                 <Button onClick={handleAdd} className="w-full bg-gradient-primary text-primary-foreground">Add Division</Button>
               </div>
             </DialogContent>
@@ -64,6 +136,14 @@ export default function DivisionsPage() {
                   <p className="text-xs text-muted-foreground">{d.totalStudents} students • {d.batchIds.length} batches</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Batches: {d.batchIds.map((id) => batches.find((b) => b.id === id)?.name || id).join(", ") || "None"}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Faculty: {(d.facultyAllocations || [])
+                      .map((x) => {
+                        const facultyName = faculty.find((f) => f.id === x.facultyId)?.name || x.facultyId;
+                        return `${facultyName} (${x.allocationType})`;
+                      })
+                      .join(", ") || "All faculty allowed"}
                   </p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => removeDivision(d.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

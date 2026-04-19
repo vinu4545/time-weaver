@@ -27,6 +27,10 @@ export class InputNormalizer {
   private normalizeFaculty(faculty: any[]): any[] {
     return faculty.map(f => ({
       ...f,
+      subjectCapabilities: f.subjectCapabilities || (f.subjectIds || []).map((subjectId: string) => ({
+        subjectId,
+        allocationType: "both",
+      })),
       maxWeeklyLoad: f.maxWeeklyLoad || 18,
       availability: f.availability || [],
     }));
@@ -61,6 +65,7 @@ export class InputNormalizer {
       ...d,
       totalStudents: d.totalStudents || 120,
       batchIds: d.batchIds || [],
+      facultyAllocations: d.facultyAllocations || [],
     }));
   }
 }

@@ -9,7 +9,7 @@ import { ForwardChecking } from "./forwardChecking";
 import { DomainGenerator } from "./domainGenerator";
 import { Logger } from "../utils/logger";
 import { ScoreCalculator } from "../utils/scoreCalculator";
-import type { TimetableEntry, Subject, Slot, Day, SlotId } from "../types/timetable.types";
+import type { TimetableEntry, Subject, Slot, Day, SlotId, Conflict } from "../types/timetable.types";
 
 export interface GenerateTimetableOptions {
   subjects: Subject[];
@@ -25,6 +25,13 @@ export interface GenerateTimetableOptions {
 
 export async function generateTimetable(options: GenerateTimetableOptions): Promise<CSPOutput> {
   const logger = new Logger("CSPEngine");
+  const nextSlotMap: Record<string, string | undefined> = {
+    P1: "P2",
+    P3: "P4",
+    P5: "P6",
+    P6: "P7",
+    P7: "P8",
+  };
   
   try {
     const { subjects, faculty, rooms, labs, batches, divisions, mappings = [], rules, softConstraints } = options;
@@ -130,10 +137,12 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
         type: a.type as "lecture" | "practical",
       }));
 
-      logger.info(`Successfully generated dynamic timetable with ${entries.length} entries. Score: ${score}`);
+      const expandedEntries = expandPracticalEntries(entries, nextSlotMap);
+
+      logger.info(`Successfully generated dynamic timetable with ${expandedEntries.length} entries. Score: ${score}`);
 
       return {
-        entries,
+        entries: expandedEntries,
         score,
         conflicts: [],
         generatedAt: new Date().toISOString(),
@@ -149,8 +158,11 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
     const usedBatchSlots = new Set<string>();
 
     for (const subject of expandedSubjects) {
+      const requiredType: "lecture" | "practical" = subject.batchId ? "practical" : "lecture";
       const eligibleFacIds = allMappings
         .filter(m => m.subjectId === subject.id)
+        .filter(m => !m.divisionId || m.divisionId === subject.divisionId)
+        .filter(m => !m.allocationType || m.allocationType === "both" || m.allocationType === requiredType)
         .map(m => m.facultyId);
       
       let assigned = false;
@@ -159,6 +171,10 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
       
       for (const slot of shuffledSlots) {
         if (assigned) break;
+
+        if (requiredType === "practical" && !nextSlotMap[slot.id]) {
+          continue;
+        }
 
         for (const facId of eligibleFacIds) {
           if (assigned) break;
@@ -188,7 +204,7 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
               facultyId: facId,
               roomId: roomId,
               batchId: subject.batchId,
-              type: subject.type as "lecture" | "practical",
+              type: requiredType,
             });
 
             usedFacultySlots.add(facultyKey);
@@ -205,10 +221,18 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
       }
     }
 
+    const expandedFallbackEntries = expandPracticalEntries(fallbackEntries, nextSlotMap);
+    const fallbackResult = buildDynamicFallbackResult(
+      expandedSubjects,
+      fallbackEntries,
+      expandedFallbackEntries,
+      softConstraintsList
+    );
+
     return {
-      entries: fallbackEntries,
-      score: 50,
-      conflicts: [],
+      entries: fallbackResult.entries,
+      score: fallbackResult.score,
+      conflicts: fallbackResult.conflicts,
       generatedAt: new Date().toISOString(),
     };
 
@@ -221,4 +245,79 @@ export async function generateTimetable(options: GenerateTimetableOptions): Prom
       generatedAt: new Date().toISOString(),
     };
   }
+}
+
+function expandPracticalEntries(
+  entries: TimetableEntry[],
+  nextSlotMap: Record<string, string | undefined>
+): TimetableEntry[] {
+  const byKey = new Map<string, TimetableEntry>();
+
+  const keyOf = (entry: TimetableEntry) =>
+    `${entry.day}|${entry.slotId}|${entry.divisionId}|${entry.subjectId}|${entry.batchId || ""}`;
+
+  for (const entry of entries) {
+    byKey.set(keyOf(entry), entry);
+
+    if (entry.type !== "practical") continue;
+
+    const nextSlot = nextSlotMap[entry.slotId];
+    if (!nextSlot) continue;
+
+    const secondHalf: TimetableEntry = {
+      ...entry,
+      slotId: nextSlot as SlotId,
+    };
+
+    byKey.set(keyOf(secondHalf), secondHalf);
+  }
+
+  return Array.from(byKey.values());
+}
+
+function buildDynamicFallbackResult(
+  expandedSubjects: any[],
+  fallbackBaseEntries: TimetableEntry[],
+  expandedFallbackEntries: TimetableEntry[],
+  softConstraintsList: any[]
+): { entries: TimetableEntry[]; score: number; conflicts: Conflict[] } {
+  const scheduledKeys = new Set(
+    fallbackBaseEntries.map((entry) => `${entry.divisionId}|${entry.subjectId}|${entry.batchId || ""}`)
+  );
+
+  const unscheduled = expandedSubjects.filter(
+    (subject) => !scheduledKeys.has(`${subject.divisionId}|${subject.id}|${subject.batchId || ""}`)
+  );
+
+  const scoreCalculator = new ScoreCalculator(softConstraintsList);
+  const baseScore = fallbackBaseEntries.length > 0
+    ? scoreCalculator.calculateScore(fallbackBaseEntries as any)
+    : 0;
+
+  const coverageRatio = expandedSubjects.length > 0
+    ? fallbackBaseEntries.length / expandedSubjects.length
+    : 0;
+
+  const dynamicScore = Math.round(
+    Math.max(0, Math.min(100, baseScore * 0.7 + coverageRatio * 100 * 0.3)) * 10
+  ) / 10;
+
+  const conflicts: Conflict[] = [];
+  if (unscheduled.length > 0) {
+    conflicts.push({
+      type: "unscheduled_subject",
+      description: `${unscheduled.length} subject allocations could not be scheduled in fallback mode`,
+      day: "Monday",
+      slotId: "P1",
+      involvedEntities: unscheduled
+        .slice(0, 10)
+        .map((s) => `${s.divisionId}:${s.id}${s.batchId ? `:${s.batchId}` : ""}`),
+    });
+  }
+
+  return {
+    entries: expandedFallbackEntries,
+    score: dynamicScore,
+    conflicts,
+  };
 }

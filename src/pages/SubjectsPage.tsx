@@ -21,6 +21,12 @@ function SubjectForm({ onSubmit, initial }: { onSubmit: (s: Subject) => void; in
   const [isSpecial, setIsSpecial] = useState(initial?.isSpecial || false);
   const [specialType, setSpecialType] = useState<'tg' | 'library' | 'language_lab'>(initial?.specialType || 'tg');
 
+  const specialTypeNameMap: Record<'tg' | 'library' | 'language_lab', string> = {
+    tg: 'TG Slot',
+    library: 'Library Slot',
+    language_lab: 'Language Lab Slot',
+  };
+
   useEffect(() => {
     if (isSpecial) {
       setLectureDuration(1);
@@ -29,10 +35,15 @@ function SubjectForm({ onSubmit, initial }: { onSubmit: (s: Subject) => void; in
   }, [isSpecial]);
 
   const handleSubmit = () => {
-    if (!name.trim()) return;
+    const resolvedName = isSpecial ? specialTypeNameMap[specialType] : name.trim();
+    if (!resolvedName) return;
+
     onSubmit({
       id: initial?.id || crypto.randomUUID(),
-      name: name.trim(), type, lecturesPerWeek, practicalHoursPerWeek,
+      name: resolvedName,
+      type,
+      lecturesPerWeek,
+      practicalHoursPerWeek,
       lectureDuration, practicalDuration, requiresLab,
       ...(isSpecial ? { isSpecial: true, specialType } : {}),
     });
@@ -59,7 +70,12 @@ function SubjectForm({ onSubmit, initial }: { onSubmit: (s: Subject) => void; in
       )}
       <div>
         <Label>Subject Name</Label>
-        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g., Mathematics" disabled={isSpecial} />
+        <Input
+          value={isSpecial ? specialTypeNameMap[specialType] : name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="e.g., Mathematics"
+          disabled={isSpecial}
+        />
       </div>
       <div>
         <Label>Type</Label>
@@ -138,7 +154,7 @@ function SubjectForm({ onSubmit, initial }: { onSubmit: (s: Subject) => void; in
         <Label>Requires Lab</Label>
       </div>
       <Button onClick={handleSubmit} className="w-full bg-gradient-primary text-primary-foreground">
-        {initial ? "Update" : "Add"} Subject
+        {initial ? "Update" : "Add"} {isSpecial && specialType === 'tg' ? "Slot" : "Subject"}
       </Button>
     </div>
   );

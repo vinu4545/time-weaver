@@ -16,6 +16,14 @@ const TIME_SLOTS = [
   { label: "5:15 PM to 6:15 PM", id: "P8" },
 ];
 
+const NEXT_SLOT: Record<string, string | undefined> = {
+  P1: "P2",
+  P3: "P4",
+  P5: "P6",
+  P6: "P7",
+  P7: "P8",
+};
+
 export interface TimetableData {
   entries: TimetableEntry[];
   subjects: Subject[];
@@ -158,6 +166,19 @@ export function StaticTimetable({
   classRoom = "32",
   effectiveDate = "05/01/2026"
 }: TimetableData) {
+  const isSamePracticalBlock = (a?: TimetableEntry, b?: TimetableEntry): boolean => {
+    if (!a || !b) return false;
+    if (a.type !== "practical" || b.type !== "practical") return false;
+    return (
+      a.day === b.day &&
+      a.divisionId === b.divisionId &&
+      a.subjectId === b.subjectId &&
+      a.facultyId === b.facultyId &&
+      a.roomId === b.roomId &&
+      (a.batchId || "") === (b.batchId || "")
+    );
+  };
+
   const entriesByDayAndSlot = useMemo(() => {
     const map: Record<string, TimetableEntry> = {};
     for (const entry of entries) {
@@ -228,17 +249,11 @@ export function StaticTimetable({
                     const key = `${day}|${slot.id}`;
                     const entry = entriesByDayAndSlot[key];
 
-                    let isSpanned = false;
-                    for (let i = 0; i < idx; i++) {
-                      const prevSlot = TIME_SLOTS[i];
-                      const prevKey = `${day}|${prevSlot.id}`;
-                      const prevEntry = entriesByDayAndSlot[prevKey];
-                      if (prevEntry && prevEntry.slotId === slot.id) {
-                        isSpanned = true;
-                        break;
-                      }
+                    const prevSlot = idx > 0 ? TIME_SLOTS[idx - 1] : undefined;
+                    const prevEntry = prevSlot ? entriesByDayAndSlot[`${day}|${prevSlot.id}`] : undefined;
+                    if (prevSlot && isSamePracticalBlock(prevEntry, entry) && NEXT_SLOT[prevSlot.id] === slot.id) {
+                      return null;
                     }
-                    if (isSpanned) return null;
 
                     if (!entry) {
                       return (
@@ -268,12 +283,20 @@ export function StaticTimetable({
                       );
                     }
 
+                    const nextSlotId = NEXT_SLOT[slot.id];
+                    const nextEntry = nextSlotId ? entriesByDayAndSlot[`${day}|${nextSlotId}`] : undefined;
+                    const isPracticalBlockStart = entry.type === "practical" && isSamePracticalBlock(entry, nextEntry);
+
                     return (
                       <td
                         key={slot.id}
-                        className="border border-slate-300 dark:border-slate-700 p-1 text-center align-middle"
+                        colSpan={isPracticalBlockStart ? 2 : 1}
+                        className={`border border-slate-300 dark:border-slate-700 p-1 text-center align-middle ${isPracticalBlockStart ? "bg-amber-50 dark:bg-amber-950/30" : ""}`}
                       >
                         <div className="flex flex-col justify-center items-center min-h-[60px] whitespace-pre-line leading-tight">
+                          {isPracticalBlockStart && (
+                            <span className="text-[9px] uppercase tracking-wide font-bold text-amber-700 dark:text-amber-300">Practical (2H)</span>
+                          )}
                           {content}
                         </div>
                       </td>

@@ -39,6 +39,7 @@ export interface FacultyInput {
   type: "assistant" | "associate";
   maxWeeklyLoad: number;
   subjectIds: string[];
+  subjectCapabilities?: { subjectId: string; allocationType: "lecture" | "practical" | "both" }[];
   availability: AvailabilityInput[];
 }
 
@@ -63,4 +64,5 @@ export interface DivisionInput {
   name: string;
   totalStudents: number;
   batchIds: string[];
+  facultyAllocations?: { facultyId: string; allocationType: "lecture" | "practical" | "both" }[];
 }

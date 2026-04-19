@@ -2,6 +2,14 @@ import type { Domain, CSPVariable } from "../types/csp.types";
 import type { Subject, Slot, SubjectFacultyMapping } from "../types/timetable.types";
 
 export class DomainGenerator {
+  private practicalContinuousPairs: [string, string][] = [
+    ["P1", "P2"],
+    ["P3", "P4"],
+    ["P5", "P6"],
+    ["P6", "P7"],
+    ["P7", "P8"],
+  ];
+
   public generateDomains(
     subjects: Subject[],
     slots: Slot[],
@@ -11,6 +19,13 @@ export class DomainGenerator {
 
     for (const subject of subjects) {
       for (const slot of slots) {
+        const requiredType = this.getAssignmentType(subject);
+
+        // Practical sessions are forced to start only at valid 2-hour continuous starts.
+        if (requiredType === "practical" && !this.isValidPracticalStart(slot.id)) {
+          continue;
+        }
+
         const variable: CSPVariable = {
           day: slot.day,
           slotId: slot.id,
@@ -20,14 +35,19 @@ export class DomainGenerator {
 
         const facultyIds = mappings
           .filter(m => m.subjectId === subject.id)
+          .filter(m => !m.divisionId || m.divisionId === subject.divisionId)
+          .filter(m => !m.allocationType || m.allocationType === "both" || m.allocationType === requiredType)
           .map(m => m.facultyId);
+
+        const effectiveDuration = requiredType === "practical" ? 2 : 1;
 
         const domainValues = facultyIds.flatMap(facultyId => {
           return slot.rooms.map(roomId => ({
             facultyId,
             roomId,
             batchId: subject.batchId,
-            type: subject.type,
+            type: requiredType,
+            duration: effectiveDuration,
           }));
         });
 
@@ -70,5 +90,14 @@ export class DomainGenerator {
 
   private variableToKey(variable: CSPVariable): string {
     return `${variable.day}|${variable.slotId}|${variable.divisionId}|${variable.subjectId}`;
+  }
+
+  private getAssignmentType(subject: any): "lecture" | "practical" {
+    if (subject.batchId) return "practical";
+    return subject.type === "practical" ? "practical" : "lecture";
+  }
+
+  private isValidPracticalStart(slotId: string): boolean {
+    return this.practicalContinuousPairs.some(([start]) => start === slotId);
   }
 }

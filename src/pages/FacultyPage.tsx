@@ -11,11 +11,23 @@ import { Plus, Trash2 } from "lucide-react";
 import type { Faculty, FacultyType, Day, SlotId } from "@/types/timetable";
 import { ALL_DAYS, ALL_SLOTS, DEFAULT_TIME_SLOTS, TEACHING_SLOTS } from "@/types/timetable";
 
-function FacultyForm({ onSubmit, subjects }: { onSubmit: (f: Faculty) => void; subjects: { id: string; name: string }[] }) {
+type SubjectForFaculty = {
+  id: string;
+  name: string;
+  type: "lecture" | "practical" | "both";
+};
+
+type SubjectCapabilityDraft = {
+  subjectId: string;
+  lecture: boolean;
+  practical: boolean;
+};
+
+function FacultyForm({ onSubmit, subjects }: { onSubmit: (f: Faculty) => void; subjects: SubjectForFaculty[] }) {
   const [name, setName] = useState("");
   const [type, setType] = useState<FacultyType>("assistant");
   const [maxLoad, setMaxLoad] = useState(18);
-  const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+  const [subjectCapabilities, setSubjectCapabilities] = useState<SubjectCapabilityDraft[]>([]);
   const [availability, setAvailability] = useState<Record<Day, SlotId[]>>({
     Monday: [...TEACHING_SLOTS],
     Tuesday: [...TEACHING_SLOTS],
@@ -33,13 +45,49 @@ function FacultyForm({ onSubmit, subjects }: { onSubmit: (f: Faculty) => void; s
     }));
   };
 
+  const getCapability = (subject: SubjectForFaculty): SubjectCapabilityDraft | undefined => {
+    return subjectCapabilities.find((c) => c.subjectId === subject.id);
+  };
+
+  const toggleSubject = (subject: SubjectForFaculty, checked: boolean) => {
+    setSubjectCapabilities((prev) => {
+      if (checked) {
+        if (prev.some((c) => c.subjectId === subject.id)) return prev;
+        const lecture = subject.type !== "practical";
+        const practical = subject.type !== "lecture";
+        return [...prev, { subjectId: subject.id, lecture, practical }];
+      }
+      return prev.filter((c) => c.subjectId !== subject.id);
+    });
+  };
+
+  const toggleCapabilityRole = (subjectId: string, role: "lecture" | "practical", checked: boolean) => {
+    setSubjectCapabilities((prev) =>
+      prev.map((c) => {
+        if (c.subjectId !== subjectId) return c;
+        const next = { ...c, [role]: checked };
+        return next;
+      }).filter((c) => c.lecture || c.practical)
+    );
+  };
+
   const handleSubmit = () => {
     if (!name.trim()) return;
+
+    const resolvedCapabilities = subjectCapabilities
+      .map((c) => {
+        const allocationType = c.lecture && c.practical ? "both" : c.lecture ? "lecture" : c.practical ? "practical" : null;
+        if (!allocationType) return null;
+        return { subjectId: c.subjectId, allocationType };
+      })
+      .filter((c): c is { subjectId: string; allocationType: "lecture" | "practical" | "both" } => !!c);
+
     onSubmit({
       id: crypto.randomUUID(),
       name: name.trim(),
       type,
-      subjectIds: selectedSubjects,
+      subjectIds: resolvedCapabilities.map((c) => c.subjectId),
+      subjectCapabilities: resolvedCapabilities,
       maxWeeklyLoad: maxLoad,
       availability: ALL_DAYS.map((d) => ({ day: d, slots: availability[d] })),
     });
@@ -70,17 +118,35 @@ function FacultyForm({ onSubmit, subjects }: { onSubmit: (f: Faculty) => void; s
 
       <div>
         <Label className="mb-2 block">Can Teach</Label>
-        <div className="flex flex-wrap gap-2">
+        <div className="space-y-2">
           {subjects.map((s) => (
-            <label key={s.id} className="flex items-center gap-1.5 text-sm border border-border rounded-md px-2 py-1 cursor-pointer hover:bg-muted/50">
-              <Checkbox
-                checked={selectedSubjects.includes(s.id)}
-                onCheckedChange={(c) =>
-                  setSelectedSubjects(c ? [...selectedSubjects, s.id] : selectedSubjects.filter((x) => x !== s.id))
-                }
-              />
-              {s.name}
-            </label>
+            <div key={s.id} className="border border-border rounded-md px-2 py-2">
+              <label className="flex items-center gap-1.5 text-sm cursor-pointer">
+                <Checkbox
+                  checked={!!getCapability(s)}
+                  onCheckedChange={(c) => toggleSubject(s, !!c)}
+                />
+                {s.name}
+              </label>
+              {getCapability(s) && s.type === "both" && (
+                <div className="mt-2 ml-6 flex items-center gap-4 text-xs text-muted-foreground">
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <Checkbox
+                      checked={!!getCapability(s)?.lecture}
+                      onCheckedChange={(c) => toggleCapabilityRole(s.id, "lecture", !!c)}
+                    />
+                    Lecture
+                  </label>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <Checkbox
+                      checked={!!getCapability(s)?.practical}
+                      onCheckedChange={(c) => toggleCapabilityRole(s.id, "practical", !!c)}
+                    />
+                    Practical
+                  </label>
+                </div>
+              )}
+            </div>
           ))}
           {subjects.length === 0 && <span className="text-xs text-muted-foreground">Add subjects first</span>}
         </div>
@@ -152,7 +218,7 @@ export default function FacultyPage() {
             <DialogContent className="max-w-lg">
               <DialogHeader><DialogTitle>Add Faculty</DialogTitle></DialogHeader>
               <FacultyForm
-                subjects={subjects.map((s) => ({ id: s.id, name: s.name }))}
+                subjects={subjects.map((s) => ({ id: s.id, name: s.name, type: s.type }))}
                 onSubmit={(f) => { addFaculty(f); setOpen(false); }}
               />
             </DialogContent>
@@ -171,7 +237,14 @@ export default function FacultyPage() {
                   <p className="font-semibold">{f.name}</p>
                   <p className="text-xs text-muted-foreground capitalize">{f.type} • Max {f.maxWeeklyLoad} hrs/wk</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Teaches: {f.subjectIds.map((id) => subjects.find((s) => s.id === id)?.name || id).join(", ") || "None assigned"}
+                    Teaches: {(f.subjectCapabilities || []).length > 0
+                      ? (f.subjectCapabilities || [])
+                          .map((cap) => {
+                            const subjectName = subjects.find((s) => s.id === cap.subjectId)?.name || cap.subjectId;
+                            return `${subjectName} (${cap.allocationType})`;
+                          })
+                          .join(", ")
+                      : f.subjectIds.map((id) => subjects.find((s) => s.id === id)?.name || id).join(", ") || "None assigned"}
                   </p>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => removeFaculty(f.id)}>

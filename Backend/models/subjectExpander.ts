@@ -18,6 +18,7 @@ export class SubjectExpander {
           if (subject.lecturesPerWeek > 0) {
             expandedSubjects.push({
               ...subject,
+              type: "lecture",
               divisionId: division.id,
               batchId: undefined,
               requiredSlots: this.calculateRequiredSlots(subject, "lecture"),
@@ -29,6 +30,7 @@ export class SubjectExpander {
             for (const batchId of batchIds) {
               expandedSubjects.push({
                 ...subject,
+                type: "practical",
                 divisionId: division.id,
                 batchId,
                 requiredSlots: this.calculateRequiredSlots(subject, "practical"),

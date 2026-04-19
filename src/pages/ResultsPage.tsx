@@ -17,6 +17,14 @@ const SUBJECT_COLORS = [
   "bg-accent-foreground/15 text-accent-foreground border-accent-foreground/30",
 ];
 
+const NEXT_SLOT: Partial<Record<SlotId, SlotId>> = {
+  P1: "P2",
+  P3: "P4",
+  P5: "P6",
+  P6: "P7",
+  P7: "P8",
+};
+
 function getSubjectColor(subjectId: string, allSubjectIds: string[]): string {
   const idx = allSubjectIds.indexOf(subjectId);
   return SUBJECT_COLORS[idx % SUBJECT_COLORS.length];
@@ -32,6 +40,19 @@ function TimetableGrid({
   title: string;
 }) {
   const allSubjectIds = subjects.map((s) => s.id);
+
+  const isSamePracticalBlock = (a?: TimetableEntry, b?: TimetableEntry): boolean => {
+    if (!a || !b) return false;
+    if (a.type !== "practical" || b.type !== "practical") return false;
+    return (
+      a.day === b.day &&
+      a.divisionId === b.divisionId &&
+      a.subjectId === b.subjectId &&
+      a.facultyId === b.facultyId &&
+      a.roomId === b.roomId &&
+      (a.batchId || "") === (b.batchId || "")
+    );
+  };
 
   const mappedEntries = entries.map(e => ({
     ...e,
@@ -71,16 +92,32 @@ function TimetableGrid({
                       </td>
                     );
                   }
+
+                  const slotIndex = ALL_SLOTS.indexOf(slot);
+                  const prevSlot = slotIndex > 0 ? ALL_SLOTS[slotIndex - 1] : undefined;
+                  const prevEntry = prevSlot ? mappedEntries.find((e) => e.day === day && e.slotId === prevSlot) : undefined;
                   const entry = mappedEntries.find((e) => e.day === day && e.slotId === slot);
+
+                  // Skip second half of a 2-hour practical block; first cell will span both.
+                  if (prevSlot && isSamePracticalBlock(prevEntry, entry) && NEXT_SLOT[prevSlot] === slot) {
+                    return null;
+                  }
+
                   if (!entry) return <td key={slot} className="px-1 py-1 text-center text-muted-foreground text-xs">—</td>;
                   const color = getSubjectColor(entry.subjectId, allSubjectIds);
                   const subject = subjects.find(s => s.id === entry.subjectId);
                   const fac = faculty.find(f => f.id === entry.facultyId);
                   const room = rooms.find(r => r.id === entry.roomId);
+                  const nextSlot = NEXT_SLOT[slot];
+                  const nextEntry = nextSlot ? mappedEntries.find((e) => e.day === day && e.slotId === nextSlot) : undefined;
+                  const isPracticalBlockStart = entry.type === "practical" && isSamePracticalBlock(entry, nextEntry);
                   
                   return (
-                    <td key={slot} className="px-0.5 py-0.5">
-                      <div className={`rounded-lg border p-1.5 text-[10px] leading-tight ${color}`}>
+                    <td key={slot} colSpan={isPracticalBlockStart ? 2 : 1} className="px-0.5 py-0.5">
+                      <div className={`rounded-lg border p-1.5 text-[10px] leading-tight ${isPracticalBlockStart ? "bg-warning/15 text-warning border-warning/40" : color}`}>
+                        {isPracticalBlockStart && (
+                          <div className="text-[9px] font-bold uppercase tracking-wide mb-0.5">Practical (2H)</div>
+                        )}
                         <div className="font-semibold truncate">{subject?.name || '—'}</div>
                         <div className="truncate opacity-80">{fac?.name || '—'}</div>
                         <div className="truncate opacity-60">{room?.name || '—'}</div>

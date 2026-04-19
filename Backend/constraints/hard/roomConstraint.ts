@@ -2,6 +2,13 @@ import type { CSPVariable } from "../../types/csp.types";
 
 export class RoomConstraint implements CSPConstraint {
   private roomSchedule: Map<string, Map<string, boolean>> = new Map();
+  private nextSlotMap: Record<string, string | undefined> = {
+    P1: "P2",
+    P3: "P4",
+    P5: "P6",
+    P6: "P7",
+    P7: "P8",
+  };
 
   public isSatisfied(variable: CSPVariable, value: any): boolean {
     const roomId = value.roomId;
@@ -15,6 +22,17 @@ export class RoomConstraint implements CSPConstraint {
 
     if (schedule.get(slotKey)) {
       return false;
+    }
+
+    const isTwoHourPractical = value.type === "practical" && (value.duration || 1) >= 2;
+    if (isTwoHourPractical) {
+      const nextSlotId = this.nextSlotMap[variable.slotId];
+      if (!nextSlotId) return false;
+      const nextSlotKey = `${variable.day}|${nextSlotId}`;
+      if (schedule.get(nextSlotKey)) {
+        return false;
+      }
+      schedule.set(nextSlotKey, true);
     }
 
     schedule.set(slotKey, true);

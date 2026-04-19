@@ -1,6 +1,7 @@
 export type SubjectType = 'lecture' | 'practical' | 'both';
 export type RoomType = 'lecture_hall' | 'smart_room' | 'lab';
 export type FacultyType = 'assistant' | 'associate';
+export type FacultyAllocationType = 'lecture' | 'practical' | 'both';
 export type Day = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday';
 export type SlotId = 'P1' | 'P2' | 'BREAK1' | 'P3' | 'P4' | 'LUNCH' | 'P5' | 'P6' | 'P7' | 'P8';
 
@@ -27,8 +28,14 @@ export interface Faculty {
   name: string;
   type: FacultyType;
   subjectIds: string[];
+  subjectCapabilities?: FacultySubjectCapability[];
   maxWeeklyLoad: number;
   availability: AvailabilitySlot[];
+}
+
+export interface FacultySubjectCapability {
+  subjectId: string;
+  allocationType: FacultyAllocationType;
 }
 
 export interface Room {
@@ -60,6 +67,12 @@ export interface Division {
   name: string;
   totalStudents: number;
   batchIds: string[];
+  facultyAllocations?: DivisionFacultyAllocation[];
+}
+
+export interface DivisionFacultyAllocation {
+  facultyId: string;
+  allocationType: FacultyAllocationType;
 }
 
 export interface TimeSlot {
@@ -82,6 +95,8 @@ export interface InstitutionalRules {
 export interface SubjectFacultyMapping {
   subjectId: string;
   facultyId: string;
+  divisionId?: string;
+  allocationType?: FacultyAllocationType;
   isFixed: boolean;
 }
 
@@ -106,7 +121,7 @@ export interface GeneratedTimetable {
 }
 
 export interface Conflict {
-  type: 'faculty_overlap' | 'room_clash' | 'batch_conflict' | 'capacity_exceeded' | 'load_exceeded';
+  type: 'faculty_overlap' | 'room_clash' | 'batch_conflict' | 'capacity_exceeded' | 'load_exceeded' | 'unscheduled_subject';
   description: string;
   day: Day;
   slotId: SlotId;
