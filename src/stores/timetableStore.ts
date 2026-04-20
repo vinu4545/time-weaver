@@ -50,6 +50,8 @@ interface TimetableStore {
   updateSoftConstraints: (c: Partial<SoftConstraintConfig>) => void;
 
   addGeneratedTimetable: (t: GeneratedTimetable) => void;
+  updateGeneratedTimetable: (id: string, t: Partial<GeneratedTimetable>) => void;
+  duplicateGeneratedTimetable: (id: string, name?: string) => void;
   removeGeneratedTimetable: (id: string) => void;
   setIsGenerating: (v: boolean) => void;
 }
@@ -115,7 +117,37 @@ export const useTimetableStore = create<TimetableStore>()(
       updateRules: (r) => set((st) => ({ rules: { ...st.rules, ...r } })),
       updateSoftConstraints: (c) => set((st) => ({ softConstraints: { ...st.softConstraints, ...c } })),
 
-      addGeneratedTimetable: (t) => set((st) => ({ generatedTimetables: [t, ...st.generatedTimetables] })),
+      addGeneratedTimetable: (t) => set((st) => ({ generatedTimetables: [
+        {
+          ...t,
+          generatedAt: t.generatedAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version: t.version || 1,
+        },
+        ...st.generatedTimetables,
+      ] })),
+      updateGeneratedTimetable: (id, t) => set((st) => ({
+        generatedTimetables: st.generatedTimetables.map((item) => (
+          item.id === id
+            ? { ...item, ...t, updatedAt: new Date().toISOString() }
+            : item
+        )),
+      })),
+      duplicateGeneratedTimetable: (id, name) => set((st) => {
+        const source = st.generatedTimetables.find((item) => item.id === id);
+        if (!source) return st;
+        const version = source.version ? source.version + 1 : 2;
+        const copy: GeneratedTimetable = {
+          ...source,
+          id: crypto.randomUUID(),
+          name: name || `${source.name} v${version}`,
+          generatedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          version,
+          parentId: source.parentId || source.id,
+        };
+        return { generatedTimetables: [copy, ...st.generatedTimetables] };
+      }),
       removeGeneratedTimetable: (id) => set((st) => ({ generatedTimetables: st.generatedTimetables.filter((x) => x.id !== id) })),
       setIsGenerating: (v) => set({ isGenerating: v }),
     }),

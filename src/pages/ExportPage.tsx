@@ -15,19 +15,55 @@ export default function ExportPage() {
   const allRooms = [...rooms.map((r) => ({ id: r.id, name: r.name })), ...labs.map((l) => ({ id: l.id, name: l.name }))];
   const getName = (arr: { id: string; name: string }[], id: string) => arr.find((x) => x.id === id)?.name || id;
 
+  const groupEntriesByDivision = () => {
+    if (!timetable) return [] as { divisionId: string; divisionName: string; entries: typeof timetable.entries }[];
+    return divisions.map((division) => ({
+      divisionId: division.id,
+      divisionName: division.name,
+      entries: timetable.entries.filter((entry) => entry.divisionId === division.id),
+    })).filter((section) => section.entries.length > 0);
+  };
+
+  const buildStructuredCSV = () => {
+    if (!timetable) return "";
+
+    const sections = groupEntriesByDivision();
+    const lines: string[] = [
+      `Timetable,${timetable.name}`,
+      `Score,${timetable.score.toFixed(1)}`,
+      `Generated At,${new Date(timetable.generatedAt).toLocaleString()}`,
+      "",
+    ];
+
+    for (const section of sections) {
+      lines.push(`Division,${section.divisionName}`);
+      lines.push("Day,Slot,Time,Subject,Faculty,Room,Type");
+      for (const day of ALL_DAYS) {
+        for (const slot of ALL_SLOTS) {
+          const ts = DEFAULT_TIME_SLOTS.find((t) => t.id === slot);
+          if (ts?.isBreak) continue;
+          const entry = section.entries.find((e) => e.day === day && e.slotId === slot);
+          if (!entry) continue;
+          lines.push([
+            day,
+            slot,
+            `${ts?.startTime}-${ts?.endTime}`,
+            getName(subjects, entry.subjectId),
+            getName(faculty, entry.facultyId),
+            getName(allRooms, entry.roomId),
+            entry.type,
+          ].join(","));
+        }
+      }
+      lines.push("");
+    }
+
+    return lines.join("\n");
+  };
+
   const exportCSV = () => {
     if (!timetable) return;
-    const header = "Division,Day,Slot,Time,Subject,Faculty,Room,Type\n";
-    const rows = timetable.entries.map((e) => {
-      const ts = DEFAULT_TIME_SLOTS.find((t) => t.id === e.slotId);
-      return [
-        getName(divisions, e.divisionId), e.day, e.slotId,
-        `${ts?.startTime}-${ts?.endTime}`,
-        getName(subjects, e.subjectId), getName(faculty, e.facultyId),
-        getName(allRooms, e.roomId), e.type,
-      ].join(",");
-    }).join("\n");
-    const blob = new Blob([header + rows], { type: "text/csv" });
+    const blob = new Blob([buildStructuredCSV()], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = `${timetable.name}.csv`; a.click();
     URL.revokeObjectURL(url);
@@ -35,7 +71,29 @@ export default function ExportPage() {
 
   const exportJSON = () => {
     if (!timetable) return;
-    const blob = new Blob([JSON.stringify(timetable, null, 2)], { type: "application/json" });
+    const structured = {
+      timetable: {
+        id: timetable.id,
+        name: timetable.name,
+        score: timetable.score,
+        generatedAt: timetable.generatedAt,
+        updatedAt: timetable.updatedAt,
+        version: timetable.version,
+        parentId: timetable.parentId,
+      },
+      divisions: divisions.map((division) => ({
+        id: division.id,
+        name: division.name,
+        entries: timetable.entries.filter((entry) => entry.divisionId === division.id),
+      })),
+      metadata: {
+        subjectCount: subjects.length,
+        facultyCount: faculty.length,
+        roomCount: allRooms.length,
+        divisionCount: divisions.length,
+      },
+    };
+    const blob = new Blob([JSON.stringify(structured, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = `${timetable.name}.json`; a.click();
     URL.revokeObjectURL(url);
@@ -46,13 +104,7 @@ export default function ExportPage() {
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     const pageWidth = doc.internal.pageSize.getWidth();
 
-    // Title
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text('TimeForge AI — Timetable', pageWidth / 2, 15, { align: 'center' });
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`${timetable.name} | Score: ${timetable.score.toFixed(1)} | Generated: ${new Date(timetable.generatedAt).toLocaleString()}`, pageWidth / 2, 22, { align: 'center' });
+    const sections = groupEntriesByDivision();
 
     const slotsForTable = ALL_SLOTS;
     const slotHeaders = slotsForTable.map((s) => {
@@ -60,17 +112,26 @@ export default function ExportPage() {
       return `${ts?.label}\n${ts?.startTime}-${ts?.endTime}`;
     });
 
-    // Division-wise pages
-    divisions.forEach((div, idx) => {
+    sections.forEach((section, idx) => {
       if (idx > 0) doc.addPage();
-      let yPos = idx === 0 ? 28 : 15;
+      let yPos = 14;
+
+      doc.setFontSize(17);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TimeForge AI — Timetable', pageWidth / 2, yPos, { align: 'center' });
+      yPos += 6;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${timetable.name} | Score: ${timetable.score.toFixed(1)} | Generated: ${new Date(timetable.generatedAt).toLocaleString()}`, pageWidth / 2, yPos, { align: 'center' });
+      yPos += 7;
 
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text(`Division: ${div.name}`, 14, yPos);
+      doc.text(`Division: ${section.divisionName}`, 14, yPos);
       yPos += 6;
 
-      const divEntries = timetable.entries.filter((e) => e.divisionId === div.id);
+      const divEntries = section.entries;
       const body = ALL_DAYS.map((day) => {
         const row: string[] = [day.slice(0, 3)];
         slotsForTable.forEach((slot) => {
@@ -96,6 +157,9 @@ export default function ExportPage() {
         theme: 'grid',
         styles: { fontSize: 7, cellPadding: 2, lineWidth: 0.2, overflow: 'linebreak' },
         headStyles: { fillColor: [43, 159, 147], textColor: 255, fontStyle: 'bold', fontSize: 7, halign: 'center' },
+        margin: { left: 8, right: 8 },
+        pageBreak: 'avoid',
+        rowPageBreak: 'avoid',
         columnStyles: {
           0: { fontStyle: 'bold', cellWidth: 18 },
           // Break columns get narrower

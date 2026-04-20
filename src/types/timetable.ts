@@ -118,6 +118,9 @@ export interface GeneratedTimetable {
   score: number;
   conflicts: Conflict[];
   generatedAt: string;
+  updatedAt?: string;
+  version?: number;
+  parentId?: string;
 }
 
 export interface Conflict {

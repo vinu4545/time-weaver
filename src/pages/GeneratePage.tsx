@@ -3,6 +3,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { useTimetableStore } from "@/stores/timetableStore";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { generateTimetable } from "../../Backend";
 import { Zap, AlertCircle, CheckCircle, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -12,8 +14,16 @@ export default function GeneratePage() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState("");
+  const [saveOpen, setSaveOpen] = useState(false);
+  const [pendingResult, setPendingResult] = useState<any | null>(null);
+  const [timetableName, setTimetableName] = useState("");
 
   const navigate = useNavigate();
+
+  const defaultName = (() => {
+    const stamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+    return `Timetable ${stamp}`;
+  })();
 
   const canGenerate = store.subjects.length > 0 && store.faculty.length > 0 && store.rooms.length > 0 && store.divisions.length > 0;
 
@@ -48,8 +58,10 @@ export default function GeneratePage() {
           setStatus('error');
           setErrorMsg(result.conflicts[0].description);
         } else {
-          store.addGeneratedTimetable(result);
           setStatus('success');
+          setPendingResult(result);
+          setTimetableName(defaultName);
+          setSaveOpen(true);
         }
       } catch (e: any) {
         clearInterval(interval);
@@ -57,6 +69,21 @@ export default function GeneratePage() {
         setErrorMsg(e.message || "Unknown error");
       }
     }, 100);
+  };
+
+  const handleSave = () => {
+    if (!pendingResult) return;
+    store.addGeneratedTimetable({
+      ...pendingResult,
+      id: crypto.randomUUID(),
+      name: timetableName.trim() || defaultName,
+      version: 1,
+      generatedAt: pendingResult.generatedAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    setSaveOpen(false);
+    setPendingResult(null);
+    navigate('/results');
   };
 
   const checks = [
@@ -98,7 +125,7 @@ export default function GeneratePage() {
           <div className="rounded-xl border border-success/30 bg-success/5 p-6 mb-6 text-center">
             <CheckCircle className="h-8 w-8 text-success mx-auto mb-2" />
             <p className="font-semibold">Timetable Generated!</p>
-            <p className="text-sm text-muted-foreground mb-4">Score: {store.generatedTimetables[0]?.score.toFixed(1)}</p>
+            <p className="text-sm text-muted-foreground mb-4">Score: {pendingResult?.score?.toFixed(1) || '0.0'}</p>
             <Button
               className="w-full gap-2 bg-success hover:bg-success/90 text-white"
               onClick={() => navigate('/results')}
@@ -141,6 +168,23 @@ export default function GeneratePage() {
             Add at least 1 subject, 1 faculty, 1 room, and 1 division to generate.
           </p>
         )}
+
+        <Dialog open={saveOpen} onOpenChange={setSaveOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Save Timetable</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Input value={timetableName} onChange={(e) => setTimetableName(e.target.value)} placeholder="Timetable name" />
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setSaveOpen(false)}>Cancel</Button>
+                <Button className="flex-1 bg-gradient-primary text-primary-foreground" onClick={handleSave}>Save</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   );
